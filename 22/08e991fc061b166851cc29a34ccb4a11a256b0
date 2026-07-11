@@ -1,0 +1,71 @@
+src/ha_rbac_gateway/ws_proxy.py
+  s_dd42119c482bc7::t_9e555e84f84db2 291-295
+  s_dd42119c482bc7::t_d4dcba8f2e828d 34
+  s_dd42119c482bc7::t_935cbca1f470a3 386-395,398-399
+  s_dd42119c482bc7::t_1eef4a6a82b72b 179-182
+  s_dd42119c482bc7::t_e270377ce0bf4b 234-236
+  s_dd42119c482bc7::t_30be345235f66b 30,32-33
+  s_dd42119c482bc7::t_71529dbbe8e9bc 321
+  s_dd42119c482bc7::t_615916aa117e0c 354-359
+  s_dd42119c482bc7::t_f62874b72eb4fd 272-277
+  s_dd42119c482bc7::t_089fceeef923f5 156,161-163
+  s_dd42119c482bc7::t_9b56c4f4844840 217-233
+  s_dd42119c482bc7::t_b0bec549d0aafe 316-320,322-327
+  s_dd42119c482bc7::t_1f1012610bd0ad 384-385
+  s_dd42119c482bc7::t_fe3245af6f9262 400
+src/ha_rbac_gateway/rest_proxy.py
+  s_dd42119c482bc7::t_712631b7830da9 27-32
+  s_dd42119c482bc7::t_9b9ffd2989a400 157-159,164-165,173-176
+src/ha_rbac_gateway/registry.py
+  s_dd42119c482bc7::t_7045767d4d2b81 119-124
+src/ha_rbac_gateway/filters.py
+  s_dd42119c482bc7::t_9597267132d08f 183-190,192
+  s_dd42119c482bc7::t_f293526d74bd8e 147-175
+  s_dd42119c482bc7::t_dd343094154819 176-182,191,193-214
+docs/validation-report.md
+  s_dd42119c482bc7::t_f681c582d0c2bb 98-99,103-105
+  s_dd42119c482bc7::t_36b030aaab5832 87-97,100-102,106-111
+src/ha_rbac_gateway/server.py
+  s_dd42119c482bc7::t_5cdb102bb67adc 76-77
+  s_dd42119c482bc7::t_b574ae9c87e8e2 38-40,42
+  s_dd42119c482bc7::t_578db41b0abc2c 63
+tests/test_integration.py
+  s_dd42119c482bc7::t_d836527b905eef 215-227,231-233,256-258
+  s_dd42119c482bc7::t_ee2301607d2ec8 228-230,234-255
+  s_dd42119c482bc7::t_8d8987da9bcf2d 178-179,182-183
+  s_dd42119c482bc7::t_6b76a96192e52a 259-313
+src/ha_rbac_gateway/commands.py
+  s_dd42119c482bc7::t_c1439b91122146 21,26
+  s_dd42119c482bc7::t_a56b382ac17495 109-114
+  s_dd42119c482bc7::t_e380a9faaf274f 58-67,71-89
+  s_dd42119c482bc7::t_d0e24fa6d58e8e 29,31,39-45
+  s_dd42119c482bc7::t_072f901b93ab3a 28,30,32-38
+docs/architecture.md
+  s_dd42119c482bc7::t_b5ce9c0f17ce03 94-101
+  s_dd42119c482bc7::t_f2f8fa15233c31 139-140
+  s_dd42119c482bc7::t_388e22a42f45f5 79-93,102-106
+src/ha_rbac_gateway/policy.py
+  s_dd42119c482bc7::t_47a21784e9b3cd 236-247
+tests/conftest.py
+  s_dd42119c482bc7::t_40ab4ceda0fa1d 168-171,173
+  s_dd42119c482bc7::t_b7f1f8b33f5b9e 141-143
+  s_dd42119c482bc7::t_b93bad44aab271 214-216
+  s_dd42119c482bc7::t_d6c81538d97b27 148-149,152-156
+  s_dd42119c482bc7::t_d44ab942171d50 164-167,172,174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "2208e991fc061b166851cc29a34ccb4a11a256b0",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
