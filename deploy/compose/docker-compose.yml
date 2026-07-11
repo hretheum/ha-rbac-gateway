@@ -1,0 +1,25 @@
+# docker-compose deployment for ha-rbac-gateway.
+#
+#   cp ../../.env.example .env      # then edit .env (HA_URL, HA_TOKEN, ...)
+#   mkdir -p policies data          # put per-user *.yaml in ./policies
+#   docker compose up -d
+#
+# Publish only to loopback by default; put TLS/reverse-proxy in front for
+# access from untrusted networks (see SECURITY.md).
+services:
+  ha-rbac-gateway:
+    image: ghcr.io/OWNER/ha-rbac-gateway:latest
+    # To build locally instead of pulling, comment out `image:` above and use:
+    # build:
+    #   context: ../..
+    #   dockerfile: Dockerfile
+    container_name: ha-rbac-gateway
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8124:8124"
+    volumes:
+      - ./policies:/config/policies:ro
+      - ./data:/data
+    # If HA runs in a sibling container on the same host, point HA_URL at it and
+    # attach the same network here instead of using 127.0.0.1.

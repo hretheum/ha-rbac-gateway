@@ -1,0 +1,33 @@
+# Rootless Podman Quadlet for ha-rbac-gateway.
+#
+# Install:
+#   cp ha-rbac-gateway.container ~/.config/containers/systemd/
+#   # create %h/ha-rbac-gateway/{.env,policies,data}; put *.yaml in policies/
+#   systemctl --user daemon-reload
+#   systemctl --user start ha-rbac-gateway
+#   loginctl enable-linger "$USER"   # so it runs without an active login
+#
+# Placeholders only — real values live in %h/ha-rbac-gateway/.env (chmod 600).
+[Unit]
+Description=ha-rbac-gateway (fail-closed RBAC in front of Home Assistant)
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=ghcr.io/OWNER/ha-rbac-gateway:latest
+AutoUpdate=registry
+ContainerName=ha-rbac-gateway
+# Loopback-only publish; front it with TLS for untrusted networks.
+PublishPort=127.0.0.1:8124:8124
+EnvironmentFile=%h/ha-rbac-gateway/.env
+Volume=%h/ha-rbac-gateway/policies:/config/policies:ro,Z
+Volume=%h/ha-rbac-gateway/data:/data:Z
+# Modest guardrails so the gateway can't starve a small host:
+PodmanArgs=--memory=256m --cpus=1 --pids-limit=256
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

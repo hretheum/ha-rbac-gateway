@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+.venv/
+.coverage
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+*.bak*
+
+# Runtime data (created at deploy time). The committed samples live under
+# examples/policies/ and are re-included below.
+data/
+policies/
+deploy/compose/data/
+deploy/compose/policies/
+!examples/policies/
+!examples/policies/**

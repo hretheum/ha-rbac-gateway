@@ -1,0 +1,26 @@
+# Example policy: a guest who may see the living-room lights and the outdoor
+# temperature, and may switch the living-room lamp on/off — nothing else.
+#
+# Copy this file into your POLICY_DIR (default: /config/policies) and edit.
+# One file per user. Restart the gateway after changing policies.
+
+user:
+  # Prefer matching by HA user id (stable, unambiguous). Find it in the gateway
+  # log: the first time a user connects without a policy, their id is logged.
+  # Until you know it, you may match by display name instead (see below).
+  id: REPLACE-WITH-HA-USER-ID
+  # name: "Guest"        # alternative to id — matches the HA display name
+
+allow:
+  entities:
+    - id: light.living_room_lamp
+      access: control          # control implies read
+    - id: sensor.outdoor_temperature
+      access: read             # read is the default; shown here for clarity
+  domains: []                  # e.g. { id: light, access: read } to allow all lights (read)
+  areas: []                    # e.g. { id: living_room, access: control } (needs the registry)
+
+dashboards:
+  default: guest-home          # url_path of the Lovelace dashboard to pin them to
+  allowed:
+    - guest-home

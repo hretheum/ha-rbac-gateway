@@ -1,0 +1,192 @@
+"""A minimal fake Home Assistant (REST + WS) and a gateway wired to it.
+
+The fake is deliberately permissive: it does NO entity filtering (a non-admin
+sees everything), exactly like real HA. That is the whole point — every bit of
+scoping in these tests is done by the gateway, so if the gateway regressed, the
+forbidden entities would leak through and the tests would fail.
+"""
+
+from __future__ import annotations
+
+import json
+
+import pytest_asyncio
+from aiohttp import WSMsgType, web
+from aiohttp.test_utils import TestServer
+
+from ha_rbac_gateway.appkeys import GATEWAY
+from ha_rbac_gateway.config import load_config
+from ha_rbac_gateway.server import build_app
+
+TOKENS = {
+    "backend": {"id": "backend-user", "name": "Backend", "is_admin": True, "is_owner": False},
+    "restricted": {"id": "u1", "name": "Restricted", "is_admin": False, "is_owner": False},
+    "admin": {"id": "admin1", "name": "Admin", "is_admin": True, "is_owner": True},
+}
+
+STATES = {
+    "light.kitchen": {"entity_id": "light.kitchen", "state": "off"},
+    "sensor.temp": {"entity_id": "sensor.temp", "state": "21"},
+    "sensor.secret": {"entity_id": "sensor.secret", "state": "hunter2"},
+    "light.hidden": {"entity_id": "light.hidden", "state": "on"},
+}
+
+ENTITY_REGISTRY = [
+    {"entity_id": "light.kitchen", "area_id": "kitchen", "device_id": "d1"},
+    {"entity_id": "sensor.temp", "area_id": "kitchen", "device_id": "d1"},
+    {"entity_id": "sensor.secret", "area_id": "vault", "device_id": "d2"},
+    {"entity_id": "light.hidden", "area_id": "vault", "device_id": "d2"},
+]
+DEVICE_REGISTRY = [
+    {"id": "d1", "area_id": "kitchen"},
+    {"id": "d2", "area_id": "vault"},
+]
+
+
+def _identity_for(token: str):
+    return TOKENS.get(token)
+
+
+def _rest_token(request: web.Request) -> str:
+    auth = request.headers.get("Authorization", "")
+    return auth[7:] if auth.startswith("Bearer ") else ""
+
+
+async def _config(request):
+    if _identity_for(_rest_token(request)) is None:
+        return web.json_response({"message": "unauthorized"}, status=401)
+    return web.json_response({"version": "2026.7.1", "location_name": "Test Home"})
+
+
+async def _states(request):
+    if _identity_for(_rest_token(request)) is None:
+        return web.json_response({"message": "unauthorized"}, status=401)
+    return web.json_response(list(STATES.values()))
+
+
+async def _state_one(request):
+    if _identity_for(_rest_token(request)) is None:
+        return web.json_response({"message": "unauthorized"}, status=401)
+    eid = request.match_info["eid"]
+    if eid not in STATES:
+        return web.json_response({"message": "not found"}, status=404)
+    return web.json_response(STATES[eid])
+
+
+async def _service(request):
+    if _identity_for(_rest_token(request)) is None:
+        return web.json_response({"message": "unauthorized"}, status=401)
+    # HA returns the list of states that changed. Include a couple to prove the
+    # gateway filters even the *response* of an allowed call.
+    return web.json_response([STATES["light.kitchen"], STATES["sensor.secret"]])
+
+
+async def _template(request):
+    # Real HA would render this; the gateway must never let it get here.
+    return web.json_response("LEAKED", status=200)
+
+
+async def _services_catalogue(request):
+    return web.json_response({"light": {"turn_on": {}}})
+
+
+async def _ws(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+    await ws.send_json({"type": "auth_required", "ha_version": "2026.7.1"})
+    identity = None
+    async for msg in ws:
+        if msg.type != WSMsgType.TEXT:
+            continue
+        data = json.loads(msg.data)
+        mtype = data.get("type")
+        if identity is None:
+            if mtype == "auth":
+                identity = _identity_for(data.get("access_token", ""))
+                if identity is None:
+                    await ws.send_json({"type": "auth_invalid"})
+                    await ws.close()
+                    return ws
+                await ws.send_json({"type": "auth_ok", "ha_version": "2026.7.1"})
+            continue
+        await _ws_command(ws, data, identity)
+    return ws
+
+
+async def _ws_command(ws, data, identity):
+    mid, mtype = data.get("id"), data.get("type")
+
+    def ok(result):
+        return {"id": mid, "type": "result", "success": True, "result": result}
+
+    if mtype == "auth/current_user":
+        await ws.send_json(ok(identity))
+    elif mtype == "get_states":
+        await ws.send_json(ok(list(STATES.values())))
+    elif mtype == "config/entity_registry/list":
+        await ws.send_json(ok(ENTITY_REGISTRY))
+    elif mtype == "config/device_registry/list":
+        await ws.send_json(ok(DEVICE_REGISTRY))
+    elif mtype == "subscribe_entities":
+        await ws.send_json(ok(None))
+        ids = data.get("entity_ids") or list(STATES)
+        add = {eid: {"s": STATES[eid]["state"]} for eid in ids if eid in STATES}
+        await ws.send_json({"id": mid, "type": "event", "event": {"a": add}})
+    elif mtype == "call_service":
+        await ws.send_json(ok({"context": {"id": "ctx"}}))
+    elif mtype == "render_template":
+        # If the gateway ever forwards this, it leaks. Emit a fake event.
+        await ws.send_json(ok(None))
+        await ws.send_json({"id": mid, "type": "event", "event": {"result": "LEAKED"}})
+    else:
+        await ws.send_json({"id": mid, "type": "result", "success": False,
+                            "error": {"code": "unknown_command", "message": "Unknown command."}})
+
+
+def make_fake_ha_app() -> web.Application:
+    app = web.Application()
+    app.router.add_get("/api/config", _config)
+    app.router.add_get("/api/states", _states)
+    app.router.add_get("/api/states/{eid}", _state_one)
+    app.router.add_get("/api/services", _services_catalogue)
+    app.router.add_post("/api/services/{domain}/{service}", _service)
+    app.router.add_post("/api/template", _template)
+    app.router.add_get("/api/websocket", _ws)
+    return app
+
+
+@pytest_asyncio.fixture
+async def fake_ha():
+    server = TestServer(make_fake_ha_app())
+    await server.start_server()
+    yield server
+    await server.close()
+
+
+@pytest_asyncio.fixture
+async def gateway(fake_ha, tmp_path, monkeypatch):
+    policy_dir = tmp_path / "policies"
+    policy_dir.mkdir()
+    (policy_dir / "u1.yaml").write_text(
+        "user: { id: u1 }\n"
+        "allow:\n"
+        "  entities:\n"
+        "    - { id: light.kitchen, access: control }\n"
+        "    - { id: sensor.temp, access: read }\n"
+    )
+    ha_url = f"http://{fake_ha.host}:{fake_ha.port}"
+    env = {
+        "HA_URL": ha_url,
+        "HA_TOKEN": "backend",
+        "POLICY_DIR": str(policy_dir),
+        "DATA_DIR": str(tmp_path / "data"),
+        "REGISTRY_REFRESH_INTERVAL": "3600",
+        "IDENTITY_CACHE_TTL": "0",
+    }
+    config = load_config(env)
+    app = build_app(config)
+    server = TestServer(app)
+    await server.start_server()
+    server.gateway = app[GATEWAY]  # type: ignore[attr-defined]
+    yield server
+    await server.close()
