@@ -1,0 +1,48 @@
+docs/architecture.md
+  s_dd42119c482bc7::t_16dc4f75729011 56-60
+  s_dd42119c482bc7::t_7aca792b0f17b7 74-78
+  s_dd42119c482bc7::t_d6ce79301dcde0 61-64
+src/ha_rbac_gateway/filters.py
+  s_dd42119c482bc7::t_190ef0d21b6321 12-26
+tests/conftest.py
+  s_dd42119c482bc7::t_900cfe1cf4c59e 55-64,68
+  s_dd42119c482bc7::t_54397f218c9274 142-143
+  s_dd42119c482bc7::t_2b880adc0f1a73 89-94
+tests/test_integration.py
+  s_dd42119c482bc7::t_ea44d26dc10cd9 65-87
+  s_dd42119c482bc7::t_210057261a40ff 137-148
+docs/validation-report.md
+  s_dd42119c482bc7::t_f0454c7798989e 43-44
+  s_dd42119c482bc7::t_d3c9addc0bafd0 56-75
+src/ha_rbac_gateway/commands.py
+  s_dd42119c482bc7::t_3eb2087dbf3a61 30
+  s_dd42119c482bc7::t_7529f7cfdff489 86-87
+  s_dd42119c482bc7::t_cefa48b7d17398 39-40
+src/ha_rbac_gateway/ws_proxy.py
+  s_dd42119c482bc7::t_b1686f0b908cc7 191-193
+  s_dd42119c482bc7::t_ed622dc4ea9ad5 31
+  s_dd42119c482bc7::t_0ac14b359031ef 326-327
+src/ha_rbac_gateway/rest_proxy.py
+  s_dd42119c482bc7::t_77be8b557f03b4 19
+  s_dd42119c482bc7::t_e7fcd3faeb1f3d 84-85
+  s_dd42119c482bc7::t_6d143524c68433 111-117,119-120
+tests/test_filters.py
+  s_dd42119c482bc7::t_e7f9bbffc891e6 103-112
+  s_dd42119c482bc7::t_9277953c77777b 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "a0ed41c93b08dd11c08c68e39f0a745e3b7369bd",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
