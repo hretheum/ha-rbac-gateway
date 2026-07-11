@@ -138,13 +138,22 @@ async def _ws_command(ws, data, identity):
     if mtype == "auth/current_user":
         await ws.send_json(ok(identity))
     elif mtype == "get_states":
-        await ws.send_json(ok(list(STATES.values())))
+        # Sent as a coalesced one-element JSON array frame (HA batches messages
+        # this way); exercises the gateway's array-unpacking path.
+        await ws.send_str(json.dumps([ok(list(STATES.values()))]))
     elif mtype == "get_config":
         await ws.send_json(ok(dict(CONFIG)))
     elif mtype == "config/entity_registry/list":
         await ws.send_json(ok(ENTITY_REGISTRY))
+    elif mtype == "config/entity_registry/list_for_display":
+        await ws.send_json(ok({"entity_categories": [], "entities": ENTITY_REGISTRY}))
     elif mtype == "config/device_registry/list":
         await ws.send_json(ok(DEVICE_REGISTRY))
+    elif mtype == "config/area_registry/list":
+        await ws.send_json(ok([{"area_id": "kitchen", "name": "Kitchen"},
+                               {"area_id": "vault", "name": "Vault"}]))
+    elif mtype == "config/floor_registry/list":
+        await ws.send_json(ok([{"floor_id": "ground", "name": "Ground"}]))
     elif mtype == "subscribe_entities":
         await ws.send_json(ok(None))
         ids = data.get("entity_ids") or list(STATES)
@@ -152,6 +161,17 @@ async def _ws_command(ws, data, identity):
         await ws.send_json({"id": mid, "type": "event", "event": {"a": add}})
     elif mtype == "call_service":
         await ws.send_json(ok({"context": {"id": "ctx"}}))
+    elif mtype == "lovelace/config":
+        await ws.send_json(ok({"title": data.get("url_path") or "default", "views": []}))
+    elif mtype == "get_panels":
+        await ws.send_json(ok({
+            "guest-home": {"component_name": "lovelace", "url_path": "guest-home",
+                           "title": "Guest", "show_in_sidebar": True},
+            "dashboard-secret": {"component_name": "lovelace", "url_path": "dashboard-secret",
+                                 "show_in_sidebar": True},
+            "config": {"component_name": "config", "url_path": "config"},
+            "profile": {"component_name": "profile", "url_path": "profile"},
+        }))
     elif mtype == "render_template":
         # If the gateway ever forwards this, it leaks. Emit a fake event.
         await ws.send_json(ok(None))
@@ -191,6 +211,9 @@ async def gateway(fake_ha, tmp_path, monkeypatch):
         "  entities:\n"
         "    - { id: light.kitchen, access: control }\n"
         "    - { id: sensor.temp, access: read }\n"
+        "dashboards:\n"
+        "  default: guest-home\n"
+        "  allowed: [guest-home]\n"
     )
     ha_url = f"http://{fake_ha.host}:{fake_ha.port}"
     env = {

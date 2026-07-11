@@ -233,6 +233,18 @@ class PolicyEvaluator:
         # control implies read
         return self.allowed_control(entity_id) or self._match(self._p.read, entity_id)
 
+    def allowed_area_ids(self) -> set[str]:
+        """Area ids that contain at least one entity the user may read."""
+        areas = {self._reg.area_of(e) for e in self.enumerable_read_entities()}
+        areas.discard(None)
+        return areas  # type: ignore[return-value]
+
+    def allowed_device_ids(self) -> set[str]:
+        """Device ids that own at least one entity the user may read."""
+        devices = {self._reg.device_of(e) for e in self.enumerable_read_entities()}
+        devices.discard(None)
+        return devices  # type: ignore[return-value]
+
     def enumerable_read_entities(self) -> list[str]:
         """Concrete entity ids for subscribe_entities rewriting.
 

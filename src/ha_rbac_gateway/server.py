@@ -35,7 +35,11 @@ class Gateway:
         )
         self.policies = PolicyStore.load_dir(config.policy_dir)
         self.canary = CanaryRunner(self)
+        # http: decodes responses (for endpoints we parse + filter).
+        # http_raw: no auto-decompress, for transparent byte-for-byte passthrough
+        # (so brotli/gzip bodies are relayed with their Content-Encoding intact).
         self.http: aiohttp.ClientSession | None = None
+        self.http_raw: aiohttp.ClientSession | None = None
 
     def evaluator_for(self, identity: Identity) -> PolicyEvaluator | None:
         policy = self.policies.find(identity)
@@ -56,6 +60,7 @@ class Gateway:
 
     async def on_startup(self, app: web.Application) -> None:
         self.http = aiohttp.ClientSession()
+        self.http_raw = aiohttp.ClientSession(auto_decompress=False)
         await self._fetch_version()
         await self.registry.start()
         await self.canary.start()
@@ -68,6 +73,8 @@ class Gateway:
         await self.registry.stop()
         if self.http:
             await self.http.close()
+        if self.http_raw:
+            await self.http_raw.close()
 
 
 async def _health(request: web.Request) -> web.Response:

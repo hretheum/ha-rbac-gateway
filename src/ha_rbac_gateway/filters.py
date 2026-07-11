@@ -144,3 +144,71 @@ def state_changed_allowed(event: dict, allowed) -> bool:
         return False
     eid = data.get("entity_id")
     return isinstance(eid, str) and allowed(eid)
+
+
+def _entry_entity_id(entry: dict) -> str | None:
+    # list_for_display uses abbreviated keys; "ei" is the entity_id there.
+    return entry.get("entity_id") or entry.get("ei")
+
+
+def filter_entity_registry(entries: list, allowed_entities: set) -> list:
+    """Keep only entity-registry entries for entities the user may read."""
+    if not isinstance(entries, list):
+        return []
+    return [e for e in entries
+            if isinstance(e, dict) and _entry_entity_id(e) in allowed_entities]
+
+
+def filter_entity_registry_display(result: dict, allowed_entities: set) -> dict:
+    """Filter the {entity_categories, entities:[...]} list_for_display payload."""
+    if not isinstance(result, dict):
+        return result
+    out = dict(result)
+    out["entities"] = filter_entity_registry(result.get("entities", []), allowed_entities)
+    return out
+
+
+def filter_by_key(entries: list, key: str, allowed_ids: set) -> list:
+    """Generic: keep registry entries whose `key` is in `allowed_ids`."""
+    if not isinstance(entries, list):
+        return []
+    return [e for e in entries if isinstance(e, dict) and e.get(key) in allowed_ids]
+
+
+# HA's frontend router falls back to a panel named this when the browser has no
+# stored default. We must keep or synthesize it or navigation breaks.
+DEFAULT_PANEL_KEY = "lovelace"
+
+
+# Built-in panels that carry no dashboard content but are needed by the router
+# (route fallback, redirects) or for account management. Kept regardless of
+# policy; the admin-only ones (config, developer-tools) are hidden by the
+# frontend for non-admins anyway, and feature panels (history, energy, media…)
+# are intentionally NOT here so they stay out of a restricted user's sidebar.
+_ESSENTIAL_COMPONENTS = ("profile", "notfound", "my")
+
+
+def filter_panels(panels: dict, allowed_dashboards: set, default_dashboard: str | None,
+                  keep_components: tuple = _ESSENTIAL_COMPONENTS) -> dict:
+    """Keep only the user's dashboards (plus a few essential built-ins like the
+    profile page), so the sidebar shows nothing the user can't open.
+
+    The router still needs a default panel (`lovelace`). If the user has no such
+    dashboard, we alias their default dashboard to it as a hidden entry, so the
+    default route resolves without exposing an extra sidebar item.
+    """
+    if not isinstance(panels, dict):
+        return panels
+    kept = {}
+    for key, panel in panels.items():
+        if not isinstance(panel, dict):
+            continue
+        if panel.get("url_path") in allowed_dashboards \
+                or panel.get("component_name") in keep_components:
+            kept[key] = panel
+    if DEFAULT_PANEL_KEY not in kept and default_dashboard and default_dashboard in panels:
+        alias = dict(panels[default_dashboard])
+        alias["url_path"] = DEFAULT_PANEL_KEY
+        alias["show_in_sidebar"] = False
+        kept[DEFAULT_PANEL_KEY] = alias
+    return kept

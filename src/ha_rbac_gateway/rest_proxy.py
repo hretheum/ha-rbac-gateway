@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 
-import aiohttp
 from aiohttp import web
 
 from . import audit, commands
@@ -25,6 +24,12 @@ _HOP_BY_HOP = {
     "te", "trailers", "transfer-encoding", "upgrade", "content-length",
     "content-encoding",
 }
+# For transparent passthrough we relay the body byte-for-byte, so we KEEP
+# Content-Encoding (the client decodes it) and only drop framing headers.
+_RAW_STRIP = {
+    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+    "te", "trailers", "transfer-encoding", "upgrade", "content-length",
+}
 
 
 def _bearer(request: web.Request) -> str:
@@ -36,10 +41,6 @@ def _bearer(request: web.Request) -> str:
 
 def _fwd_headers(request: web.Request) -> dict[str, str]:
     return {k: v for k, v in request.headers.items() if k.lower() not in _HOP_BY_HOP | {"host"}}
-
-
-def _resp_headers(upstream: aiohttp.ClientResponse) -> dict[str, str]:
-    return {k: v for k, v in upstream.headers.items() if k.lower() not in _HOP_BY_HOP}
 
 
 class RestProxy:
@@ -153,12 +154,15 @@ class RestProxy:
     async def _passthrough(self, request: web.Request) -> web.StreamResponse:
         body = await request.read()
         url = self.gw.ha_url + request.path_qs
-        async with self.gw.http.request(
+        # Raw session: no auto-decompress, so a brotli/gzip body is relayed as-is
+        # with its Content-Encoding header and the browser decodes it.
+        async with self.gw.http_raw.request(
             request.method, url, headers=_fwd_headers(request), data=body or None,
             allow_redirects=False,
         ) as up:
             raw = await up.read()
-            resp = web.StreamResponse(status=up.status, headers=_resp_headers(up))
+            headers = {k: v for k, v in up.headers.items() if k.lower() not in _RAW_STRIP}
+            resp = web.StreamResponse(status=up.status, headers=headers)
             await resp.prepare(request)
             await resp.write(raw)
             await resp.write_eof()
@@ -166,7 +170,10 @@ class RestProxy:
 
     async def _fetch_json(self, request: web.Request, json_body=None):
         url = self.gw.ha_url + request.path_qs
-        kwargs = {"headers": _fwd_headers(request)}
+        # Ask upstream for an uncompressed body so parsing needs no codec deps.
+        headers = _fwd_headers(request)
+        headers["Accept-Encoding"] = "identity"
+        kwargs = {"headers": headers}
         if json_body is not None:
             kwargs["json"] = json_body
         else:

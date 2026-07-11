@@ -18,11 +18,31 @@ WS_FORWARD_PLAIN: frozenset[str] = frozenset({
     "manifest/list",
     "manifest/get",
     "auth/current_user",
+    "supported_features",
     "frontend/get_translations",
     "frontend/get_version",
     "frontend/get_user_data",
     "frontend/set_user_data",
+    "frontend/subscribe_user_data",   # the user's own frontend prefs
     "frontend/get_themes",
+    "frontend/subscribe_system_data",  # frontend-wide flags; no entity data
+    "brands/access_token",            # signed URL for integration logos (cosmetic)
+    "recorder/info",                  # recorder status; no entity data
+})
+
+# Commands answered with a benign empty result instead of an error. The frontend
+# calls these during init and does not always catch a rejection; denying with an
+# error would abort the UI from mounting, so we soft-succeed with nothing.
+WS_SOFT_EMPTY: dict = {
+    "repairs/list_issues": {"issues": []},
+}
+
+# Untargeted services that are safe to accept but must NOT reach HA from a
+# restricted user. The frontend calls system_log.write to record its own client
+# errors; denying it creates an unhandled-rejection storm. We acknowledge success
+# without forwarding (the message is simply dropped).
+SILENT_OK_SERVICES: frozenset[str] = frozenset({
+    "system_log.write",
 })
 
 # Commands the gateway must post-process. Handlers live in ws_proxy.
@@ -35,9 +55,38 @@ WS_GET_PANELS = "get_panels"                # filter to allowed dashboards
 WS_LOVELACE_CONFIG = "lovelace/config"      # restrict to allowed dashboards
 WS_LOVELACE_RESOURCES = "lovelace/resources"  # static resource list; forward
 
+# Registry lists: forwarded, then the RESULT is filtered to the user's entities
+# (and their areas/devices). Without these the HA frontend can't finish loading;
+# filtering them keeps the full inventory from leaking.
+WS_REG_ENTITY_LIST = "config/entity_registry/list"
+WS_REG_ENTITY_DISPLAY = "config/entity_registry/list_for_display"
+WS_REG_DEVICE_LIST = "config/device_registry/list"
+WS_REG_AREA_LIST = "config/area_registry/list"
+WS_REG_FLOOR_LIST = "config/floor_registry/list"
+WS_REG_LABEL_LIST = "config/label_registry/list"
+
 WS_HANDLED: frozenset[str] = frozenset({
     WS_GET_STATES, WS_GET_CONFIG, WS_SUBSCRIBE_ENTITIES, WS_SUBSCRIBE_EVENTS,
     WS_CALL_SERVICE, WS_GET_PANELS, WS_LOVELACE_CONFIG, WS_LOVELACE_RESOURCES,
+    WS_REG_ENTITY_LIST, WS_REG_ENTITY_DISPLAY, WS_REG_DEVICE_LIST,
+    WS_REG_AREA_LIST, WS_REG_FLOOR_LIST, WS_REG_LABEL_LIST,
+})
+
+# subscribe_events for these "something changed, refetch" registry events is
+# accepted synthetically (the subscription resolves so the frontend boots) but
+# no events are relayed — updates carry ids the user may not be allowed to see,
+# and registry changes are rare enough that "refresh to see changes" is fine.
+WS_SYNTHETIC_EVENTS: frozenset[str] = frozenset({
+    "entity_registry_updated",
+    "device_registry_updated",
+    "area_registry_updated",
+    "floor_registry_updated",
+    "label_registry_updated",
+    "category_registry_updated",
+    "component_loaded",
+    "service_registered",
+    "service_removed",
+    "repairs_issue_registry_updated",
 })
 
 # subscribe_events: event types that carry no entity state and only tell the UI
@@ -57,10 +106,12 @@ WS_EXPLICIT_DENY: frozenset[str] = frozenset({
     "execute_script",
     "subscribe_trigger",
     "fire_event",
-    "config/entity_registry/list",
-    "config/entity_registry/list_for_display",
-    "config/device_registry/list",
-    "config/area_registry/list",
+    "config/entity_registry/update",
+    "config/entity_registry/remove",
+    "config/device_registry/update",
+    "config/area_registry/create",
+    "config/area_registry/update",
+    "config/area_registry/delete",
     "config/auth/list",
     "config/auth/create",
     "config/auth/update",

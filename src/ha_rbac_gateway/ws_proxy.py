@@ -27,7 +27,11 @@ from aiohttp import web
 from . import audit, commands
 from .appkeys import GATEWAY
 from .filters import (
+    filter_by_key,
     filter_compressed_entities_event,
+    filter_entity_registry,
+    filter_entity_registry_display,
+    filter_panels,
     redact_home_location,
     service_call_allowed,
     state_changed_allowed,
@@ -149,11 +153,14 @@ class _Connection:
         self.subs: dict[int, _Sub] = {}      # subscription id -> _Sub
 
     async def run(self) -> None:
-        await asyncio.gather(
+        results = await asyncio.gather(
             self._pump_client_to_ha(),
             self._pump_ha_to_client(),
             return_exceptions=True,
         )
+        for r in results:
+            if isinstance(r, Exception):
+                log.warning("ws pump exception (%s): %r", self.identity.user_id, r, exc_info=r)
 
     # -- client -> HA --------------------------------------------------------
 
@@ -169,7 +176,10 @@ class _Connection:
                 if self.passthrough:
                     await self.upstream.send_json(data)
                     continue
-                await self._route_client_msg(data)
+                # HA supports coalescing several messages into one JSON array frame.
+                for m in (data if isinstance(data, list) else [data]):
+                    if isinstance(m, dict):
+                        await self._route_client_msg(m)
         finally:
             await self.upstream.close()
 
@@ -204,6 +214,26 @@ class _Connection:
             await self._handle_lovelace_config(mid, data)
         elif mtype == commands.WS_LOVELACE_RESOURCES:
             await self._forward(data)
+        elif mtype == commands.WS_REG_ENTITY_LIST:
+            self.pending[mid] = "filter_entity_reg"
+            await self._forward(data)
+        elif mtype == commands.WS_REG_ENTITY_DISPLAY:
+            self.pending[mid] = "filter_entity_display"
+            await self._forward(data)
+        elif mtype == commands.WS_REG_DEVICE_LIST:
+            self.pending[mid] = "filter_device_reg"
+            await self._forward(data)
+        elif mtype == commands.WS_REG_AREA_LIST:
+            self.pending[mid] = "filter_area_reg"
+            await self._forward(data)
+        elif mtype in (commands.WS_REG_FLOOR_LIST, commands.WS_REG_LABEL_LIST):
+            # Floors/labels are not scoped per-entity; return an empty registry
+            # rather than leak names. The frontend degrades gracefully.
+            await self.client.send_json({"id": mid, "type": "result",
+                                         "success": True, "result": []})
+        elif mtype in commands.WS_SOFT_EMPTY:
+            await self.client.send_json({"id": mid, "type": "result", "success": True,
+                                         "result": commands.WS_SOFT_EMPTY[mtype]})
         else:
             # Includes WS_EXPLICIT_DENY and anything unknown. Default deny.
             await self._deny(mid, mtype, "command not in gateway allowlist")
@@ -239,6 +269,12 @@ class _Connection:
             self.subs[mid] = _Sub("passthrough_event")
             audit.allow(self.identity, "ws", "subscribe_events", event_type)
             await self.upstream.send_json(data)
+        elif isinstance(event_type, str) and event_type in commands.WS_SYNTHETIC_EVENTS:
+            # Accept so the frontend's subscription resolves, but relay nothing:
+            # these registry-change events can carry ids the user may not see.
+            audit.allow(self.identity, "ws", "subscribe_events", f"{event_type} (synthetic)")
+            await self.client.send_json({"id": mid, "type": "result",
+                                         "success": True, "result": None})
         else:
             await self._deny(mid, "subscribe_events",
                              f"event_type {event_type!r} not allowed (use state_changed)")
@@ -251,6 +287,11 @@ class _Connection:
         service = data.get("service")
         if not isinstance(domain, str) or not isinstance(service, str):
             await self._deny(mid, "call_service", "malformed call_service")
+            return
+        if f"{domain}.{service}" in commands.SILENT_OK_SERVICES:
+            # Acknowledge but drop — never forwarded to HA (see commands.py).
+            await self.client.send_json(
+                {"id": mid, "type": "result", "success": True, "result": {"context": {}}})
             return
 
         def resolve(kind: str, value: str):
@@ -272,9 +313,18 @@ class _Connection:
         await self.upstream.send_json(data)
 
     async def _handle_lovelace_config(self, mid: int, data: dict) -> None:
-        url_path = data.get("url_path")  # None = default dashboard
-        allowed = self.ev.policy.dashboards
-        if url_path is None or url_path in allowed:
+        # url_path None / "lovelace" is the router's default. If the user's real
+        # default dashboard isn't the built-in overview, serve that instead (the
+        # get_panels alias points here). Any other unlisted dashboard is denied —
+        # the admin overview's card config would leak entity ids the user can't
+        # see.
+        url_path = data.get("url_path")
+        dashboards = self.ev.policy.dashboards
+        default = self.ev.policy.default_dashboard
+        if url_path in (None, "lovelace") and "lovelace" not in dashboards and default:
+            self.pending[mid] = "passthrough"
+            await self.upstream.send_json({**data, "url_path": default})
+        elif isinstance(url_path, str) and url_path in dashboards:
             self.pending[mid] = "passthrough"
             await self.upstream.send_json(data)
         else:
@@ -301,7 +351,12 @@ class _Connection:
                 if self.passthrough:
                     await self.client.send_json(data)
                     continue
-                await self._route_ha_msg(data)
+                # A frame may be a single message or a coalesced array of them.
+                for m in (data if isinstance(data, list) else [data]):
+                    if isinstance(m, dict):
+                        await self._route_ha_msg(m)
+                    else:
+                        await self.client.send_json(m)
         finally:
             if not self.client.closed:
                 await self.client.close()
@@ -326,12 +381,22 @@ class _Connection:
         elif kind == "redact_config" and isinstance(data.get("result"), dict):
             data["result"] = redact_home_location(data["result"])
         elif kind == "filter_panels" and isinstance(data.get("result"), dict):
-            allowed = self.ev.policy.dashboards
-            data["result"] = {
-                k: v for k, v in data["result"].items()
-                if k in allowed or (isinstance(v, dict) and v.get("url_path") in allowed)
-            }
+            data["result"] = filter_panels(
+                data["result"], self.ev.policy.dashboards, self.ev.policy.default_dashboard)
+        elif kind == "filter_entity_reg":
+            data["result"] = filter_entity_registry(data.get("result"), self._allowed_entities())
+        elif kind == "filter_entity_display":
+            data["result"] = filter_entity_registry_display(
+                data.get("result"), self._allowed_entities())
+        elif kind == "filter_device_reg":
+            data["result"] = filter_by_key(data.get("result"), "id", self.ev.allowed_device_ids())
+        elif kind == "filter_area_reg":
+            data["result"] = filter_by_key(
+                data.get("result"), "area_id", self.ev.allowed_area_ids())
         return data
+
+    def _allowed_entities(self) -> set[str]:
+        return set(self.ev.enumerable_read_entities())
 
     async def _relay_event(self, sub: _Sub, data: dict) -> None:
         event = data.get("event")

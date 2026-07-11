@@ -84,6 +84,31 @@ allowlist design and is covered by the checks above and by unit tests.
   file restored 200. This is the state the canary drives to automatically on a
   detected filtering failure.
 
+## Results — real browser, end to end
+
+A dedicated storage-mode dashboard was created for the test user and the full HA
+web UI was driven in a real browser through the gateway (over an SSH tunnel to
+the gateway's port):
+
+- The restricted user logged in through the gateway using the normal HA login
+  page and reached their dashboard.
+- The dashboard rendered exactly the two policy entities with live state (a
+  "read" binary sensor and a "control" sensor), plus an explanatory note — and
+  nothing else from the ~349-entity instance.
+- The **sidebar showed only the user's own dashboard** (plus their profile) — no
+  other dashboards and no feature panels (history, energy, media, …).
+- Registry filtering was required to get there: the entity/device/area registries
+  are forwarded but filtered to the user's scope, so the UI finishes loading
+  without leaking the inventory.
+- Navigating by URL to a dashboard the user has no policy for (the owner's
+  `dashboard-sdres`) showed HA's own **"no access"** page — its content never
+  loaded.
+
+Getting the frontend to work surfaced (and fixed) several proxy-correctness
+issues that pure-API tests didn't: brotli passthrough, WS message coalescing
+(arrays of messages in one frame), and a handful of init-time commands the
+frontend can't proceed without.
+
 ## Results — durability & non-interference
 
 - **Service restart**: `systemctl --user restart` → `active`, `/healthz` ok.

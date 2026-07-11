@@ -76,6 +76,34 @@ Filtering an allowed response is not always about entities: `get_config` /
 coordinates (`latitude`/`longitude`/`elevation`) are zeroed for restricted
 users, since a scoped user has no reason to learn the household's location.
 
+## Serving the Home Assistant frontend
+
+Making the actual HA web UI usable by a restricted user (not just the API)
+requires a few more allowed-but-filtered commands, because the frontend can't
+finish loading without them:
+
+- **Registries** (`config/entity_registry/list[_for_display]`,
+  `config/device_registry/list`, `config/area_registry/list`) are forwarded but
+  their results are **filtered to the user's entities** (and the areas/devices
+  those entities belong to). Without this the UI hangs on "Loading data"; naively
+  allowing them would leak the entire inventory of entity names. Floor and label
+  registries return empty.
+- **Registry-change subscriptions** (`*_registry_updated`, `component_loaded`,
+  service events) are accepted so the frontend's subscription promises resolve,
+  but no events are relayed (they can carry ids the user may not see).
+- **`get_panels` is filtered** to the user's dashboards plus the built-in panels
+  the router needs (`profile`, `notfound`, the `my` redirect). Other dashboards
+  and feature panels (history, energy, media, …) are removed, so the sidebar
+  shows only what the user can open. HA's router falls back to a panel named
+  `lovelace` as its default; if the user doesn't have it, a hidden alias of their
+  default dashboard is injected under that key (and `lovelace/config` for it is
+  rewritten to their dashboard). Navigating by URL to a removed dashboard yields
+  HA's own "no access" page — no content.
+- **`system_log.write`** (the frontend's own error logging) is acknowledged
+  without forwarding, so a denial can't start an unhandled-rejection storm.
+- WebSocket frames may be **coalesced** by HA into a JSON array of several
+  messages; the proxy unpacks arrays and filters each message individually.
+
 ## Failing closed
 
 - **Unknown traffic** (unrecognized REST path or WS command) → deny.
@@ -108,3 +136,5 @@ CI/cron (`python -m ha_rbac_gateway.canary`).
   generically filterable yet).
 - Template rendering, script execution and history/logbook/camera access are not
   available to restricted users. These are deliberate exclusions, not oversights.
+- Floor and label registries return empty, so a restricted user's UI shows no
+  floor grouping or labels.

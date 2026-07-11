@@ -116,6 +116,12 @@ class RegistryCache:
             return None
         return self._entity_area.get(entity_id)
 
+    def device_of(self, entity_id: str) -> str | None:
+        """Device of an entity, or None when unknown or the snapshot is stale."""
+        if not self._fresh():
+            return None
+        return self._entity_device.get(entity_id)
+
     def entities_matching(self, domains: frozenset[str], areas: frozenset[str]) -> set[str]:
         out: set[str] = set()
         if not self._fresh():
