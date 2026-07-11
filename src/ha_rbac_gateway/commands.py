@@ -14,7 +14,6 @@ from __future__ import annotations
 # plumbing, config, translations, identity). Kept intentionally small.
 WS_FORWARD_PLAIN: frozenset[str] = frozenset({
     "ping",
-    "get_config",
     "get_services",
     "manifest/list",
     "manifest/get",
@@ -28,6 +27,7 @@ WS_FORWARD_PLAIN: frozenset[str] = frozenset({
 
 # Commands the gateway must post-process. Handlers live in ws_proxy.
 WS_GET_STATES = "get_states"                # filter result list
+WS_GET_CONFIG = "get_config"                # redact home GPS from result
 WS_SUBSCRIBE_ENTITIES = "subscribe_entities"  # rewrite entity_ids + filter stream
 WS_SUBSCRIBE_EVENTS = "subscribe_events"    # only state_changed (filtered) + safe config events
 WS_CALL_SERVICE = "call_service"            # enforce target subset of control set
@@ -36,8 +36,8 @@ WS_LOVELACE_CONFIG = "lovelace/config"      # restrict to allowed dashboards
 WS_LOVELACE_RESOURCES = "lovelace/resources"  # static resource list; forward
 
 WS_HANDLED: frozenset[str] = frozenset({
-    WS_GET_STATES, WS_SUBSCRIBE_ENTITIES, WS_SUBSCRIBE_EVENTS, WS_CALL_SERVICE,
-    WS_GET_PANELS, WS_LOVELACE_CONFIG, WS_LOVELACE_RESOURCES,
+    WS_GET_STATES, WS_GET_CONFIG, WS_SUBSCRIBE_ENTITIES, WS_SUBSCRIBE_EVENTS,
+    WS_CALL_SERVICE, WS_GET_PANELS, WS_LOVELACE_CONFIG, WS_LOVELACE_RESOURCES,
 })
 
 # subscribe_events: event types that carry no entity state and only tell the UI
@@ -81,9 +81,10 @@ WS_EXPLICIT_DENY: frozenset[str] = frozenset({
 # Anything not listed under one of the REST rules is denied.
 REST_ALLOW_GET_PLAIN: frozenset[str] = frozenset({
     "/api/",          # HA "API running" ping
-    "/api/config",    # instance config (no entity states)
     "/api/services",  # service catalogue (no states)
 })
+# /api/config is allowed but its response is redacted (home GPS removed), so it
+# is handled explicitly rather than passed through plain.
 
 # Path prefixes for the static frontend shell, forwarded as-is on GET. These
 # serve HTML/JS/CSS with no entity data; live data still flows only through the

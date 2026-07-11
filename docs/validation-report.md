@@ -40,6 +40,8 @@ REST, as the test user:
 | `GET /api/error_log` | 403 | PASS |
 | `POST /api/services/homeassistant/update_entity` on `ENTITY_CONTROL` | 200 | PASS |
 | `POST /api/services/homeassistant/update_entity` on `sun.sun` | 403 | PASS |
+| `GET /api/config` | home GPS zeroed, other fields intact | PASS |
+| `POST /api/services/.../update_entity?return_response` | 403 (unfilterable) | PASS |
 
 WebSocket, as the test user:
 
@@ -51,6 +53,26 @@ WebSocket, as the test user:
 | `config/entity_registry/list` | denied | PASS (`unauthorized`) |
 | `subscribe_entities` (no filter) | rewritten to policy | PASS (2) |
 | `call_service` on `sun.sun` | denied | PASS (`unauthorized`) |
+| `get_config` | home GPS zeroed | PASS |
+
+## Independent API review
+
+A separate source-level review of the Home Assistant auth/REST/WS API (read
+against HA core on GitHub, not just the docs) independently **confirmed the
+founding assumption**: there is no public API to create custom groups or
+per-entity ACLs — `USER_POLICY == ADMIN_POLICY`, so a stock non-admin user has
+full entity access and the gateway is the entire enforcement layer. That review
+also surfaced two hardening items, both now fixed and covered above:
+
+- `GET /api/config` / WS `get_config` leak the home's GPS coordinates → now
+  redacted for restricted users.
+- `POST /api/services/...?return_response` returns an unfilterable payload shape
+  → now denied for restricted users (matching the WebSocket rule).
+
+Everything else the review flagged (`call_service` `area_id`/`device_id`
+targets, `subscribe_events` firehose, `get_states` having no server-side filter,
+`auth/sign_path`, per-connection WS id isolation) was already handled by the
+allowlist design and is covered by the checks above and by unit tests.
 
 ## Results — fail-closed behaviour
 

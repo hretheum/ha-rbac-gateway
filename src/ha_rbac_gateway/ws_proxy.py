@@ -28,6 +28,7 @@ from . import audit, commands
 from .appkeys import GATEWAY
 from .filters import (
     filter_compressed_entities_event,
+    redact_home_location,
     service_call_allowed,
     state_changed_allowed,
 )
@@ -187,6 +188,9 @@ class _Connection:
         elif mtype == commands.WS_GET_STATES:
             self.pending[mid] = "filter_states"
             await self._forward(data)
+        elif mtype == commands.WS_GET_CONFIG:
+            self.pending[mid] = "redact_config"
+            await self._forward(data)
         elif mtype == commands.WS_SUBSCRIBE_ENTITIES:
             await self._handle_subscribe_entities(mid, data)
         elif mtype == commands.WS_SUBSCRIBE_EVENTS:
@@ -319,6 +323,8 @@ class _Connection:
             return data
         if kind == "filter_states" and isinstance(data.get("result"), list):
             data["result"] = self.ev.filter_states(data["result"])
+        elif kind == "redact_config" and isinstance(data.get("result"), dict):
+            data["result"] = redact_home_location(data["result"])
         elif kind == "filter_panels" and isinstance(data.get("result"), dict):
             allowed = self.ev.policy.dashboards
             data["result"] = {

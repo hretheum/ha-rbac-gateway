@@ -53,14 +53,15 @@ vs `rest_proxy`, `ws_proxy`) keep the security logic independently testable.
 The gateway forwards only what it explicitly recognizes and can filter:
 
 - **REST**: `/auth/*` and the static frontend shell pass through (no entity
-  state). Under `/api/`, only `/api/`, `/api/config`, `/api/services`
-  (catalogue), `GET /api/states[/id]` (filtered), and
-  `POST /api/services/<d>/<s>` (target-checked) are allowed. Everything else —
-  `/api/template`, `/api/history`, `/api/logbook`, `/api/camera_proxy`,
-  `/api/error_log`, unknown paths — is denied.
-- **WebSocket**: a curated command set (`get_states`, `subscribe_entities`,
-  `subscribe_events` limited to `state_changed`, `call_service`, `get_panels`,
-  `lovelace/config`, plus stateless frontend plumbing). `subscribe_entities` is
+  state). Under `/api/`, only `/api/`, `/api/services` (catalogue),
+  `GET /api/config` (with home GPS redacted), `GET /api/states[/id]` (filtered),
+  and `POST /api/services/<d>/<s>` (target-checked, `return_response` denied) are
+  allowed. Everything else — `/api/template`, `/api/history`, `/api/logbook`,
+  `/api/camera_proxy`, `/api/error_log`, unknown paths — is denied.
+- **WebSocket**: a curated command set (`get_states`, `get_config` (GPS
+  redacted), `subscribe_entities`, `subscribe_events` limited to `state_changed`,
+  `call_service`, `get_panels`, `lovelace/config`, plus stateless frontend
+  plumbing). `subscribe_entities` is
   rewritten so HA only streams the user's allowed entities, and the incoming
   stream is filtered again as defence in depth. Commands that read or act on
   arbitrary entities — `render_template`, `execute_script`, `subscribe_trigger`,
@@ -69,6 +70,11 @@ The gateway forwards only what it explicitly recognizes and can filter:
 Why allowlist and not blocklist: a blocklist fails **open** on every future HA
 change (a new command or endpoint leaks until someone notices). An allowlist
 fails **closed** — a new command is simply denied until we add support for it.
+
+Filtering an allowed response is not always about entities: `get_config` /
+`GET /api/config` are allowed (the frontend needs them) but their home GPS
+coordinates (`latitude`/`longitude`/`elevation`) are zeroed for restricted
+users, since a scoped user has no reason to learn the household's location.
 
 ## Failing closed
 

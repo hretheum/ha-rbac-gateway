@@ -16,7 +16,7 @@ import aiohttp
 from aiohttp import web
 
 from . import audit, commands
-from .filters import service_call_allowed
+from .filters import redact_home_location, service_call_allowed
 
 log = logging.getLogger(__name__)
 
@@ -81,6 +81,8 @@ class RestProxy:
         # --- plain allows ---
         if method == "GET" and path in commands.REST_ALLOW_GET_PLAIN:
             return await self._passthrough(request)
+        if method == "GET" and path == "/api/config":
+            return await self._config_redacted(request, identity)
         if method == "GET" and path == "/api/states":
             return await self._states_list(request, evaluator, identity)
         if method == "GET" and path.startswith("/api/states/"):
@@ -106,7 +108,16 @@ class RestProxy:
         audit.allow(identity, "rest", "GET", f"/api/states/{entity_id}")
         return await self._passthrough(request)
 
+    async def _config_redacted(self, request, identity) -> web.StreamResponse:
+        status, headers, body = await self._fetch_json(request)
+        if status == 200 and isinstance(body, dict):
+            body = redact_home_location(body)
+        audit.allow(identity, "rest", "GET", "/api/config (location redacted)")
+        return web.json_response(body, status=status, headers=_clean(headers))
+
     async def _call_service(self, request, evaluator, identity) -> web.StreamResponse:
+        if "return_response" in request.query:
+            return self._deny(identity, request, "return_response not filterable (v1)")
         parts = request.path[len("/api/services/"):].split("/")
         if len(parts) != 2 or not all(parts):
             return self._deny(identity, request, "malformed service path")

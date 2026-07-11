@@ -1,5 +1,6 @@
 from ha_rbac_gateway.filters import (
     filter_compressed_entities_event,
+    redact_home_location,
     resolve_service_targets,
     service_call_allowed,
 )
@@ -99,3 +100,13 @@ def test_compressed_event_all_forbidden_returns_none():
     allowed = {"light.kitchen"}.__contains__
     event = {"c": {"sensor.secret": {"s": "x"}}}
     assert filter_compressed_entities_event(event, allowed) is None
+
+
+def test_redact_home_location_zeroes_gps_keeps_rest():
+    cfg = {"latitude": 52.2, "longitude": 21.0, "elevation": 110,
+           "version": "2026.7.1", "location_name": "Home"}
+    out = redact_home_location(cfg)
+    assert out["latitude"] == 0 and out["longitude"] == 0 and out["elevation"] == 0
+    assert out["version"] == "2026.7.1" and out["location_name"] == "Home"
+    # original not mutated
+    assert cfg["latitude"] == 52.2

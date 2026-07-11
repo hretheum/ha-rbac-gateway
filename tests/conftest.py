@@ -52,10 +52,20 @@ def _rest_token(request: web.Request) -> str:
     return auth[7:] if auth.startswith("Bearer ") else ""
 
 
+CONFIG = {
+    "version": "2026.7.1",
+    "location_name": "Test Home",
+    "latitude": 52.2297,
+    "longitude": 21.0122,
+    "elevation": 110,
+    "unit_system": {"temperature": "°C"},
+}
+
+
 async def _config(request):
     if _identity_for(_rest_token(request)) is None:
         return web.json_response({"message": "unauthorized"}, status=401)
-    return web.json_response({"version": "2026.7.1", "location_name": "Test Home"})
+    return web.json_response(dict(CONFIG))
 
 
 async def _states(request):
@@ -76,6 +86,12 @@ async def _state_one(request):
 async def _service(request):
     if _identity_for(_rest_token(request)) is None:
         return web.json_response({"message": "unauthorized"}, status=401)
+    if "return_response" in request.query:
+        # HA changes the response shape to a dict when return_response is set;
+        # the service_response can carry arbitrary data. The gateway must never
+        # reach here for a restricted user.
+        return web.json_response(
+            {"changed_states": [], "service_response": {"secret": "LEAKED"}})
     # HA returns the list of states that changed. Include a couple to prove the
     # gateway filters even the *response* of an allowed call.
     return web.json_response([STATES["light.kitchen"], STATES["sensor.secret"]])
@@ -123,6 +139,8 @@ async def _ws_command(ws, data, identity):
         await ws.send_json(ok(identity))
     elif mtype == "get_states":
         await ws.send_json(ok(list(STATES.values())))
+    elif mtype == "get_config":
+        await ws.send_json(ok(dict(CONFIG)))
     elif mtype == "config/entity_registry/list":
         await ws.send_json(ok(ENTITY_REGISTRY))
     elif mtype == "config/device_registry/list":

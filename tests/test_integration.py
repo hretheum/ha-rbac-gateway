@@ -62,6 +62,29 @@ async def test_rest_service_call_forbidden_target(gateway):
             assert r.status == 403
 
 
+async def test_rest_service_call_return_response_denied(gateway):
+    async with aiohttp.ClientSession() as s:
+        async with s.post(base(gateway) + "/api/services/light/turn_on?return_response",
+                          headers=RESTRICTED, json={"entity_id": "light.kitchen"}) as r:
+            assert r.status == 403  # even an allowed target: response shape not filterable
+
+
+async def test_rest_config_redacts_home_location(gateway):
+    async with aiohttp.ClientSession() as s:
+        async with s.get(base(gateway) + "/api/config", headers=RESTRICTED) as r:
+            assert r.status == 200
+            cfg = await r.json()
+    assert cfg["latitude"] == 0 and cfg["longitude"] == 0 and cfg["elevation"] == 0
+    assert cfg["version"] == "2026.7.1"  # non-sensitive fields survive
+
+
+async def test_admin_config_not_redacted(gateway):
+    async with aiohttp.ClientSession() as s:
+        async with s.get(base(gateway) + "/api/config", headers=ADMIN) as r:
+            cfg = await r.json()
+    assert cfg["latitude"] != 0  # admin passthrough keeps real coordinates
+
+
 async def test_rest_missing_token_401(gateway):
     async with aiohttp.ClientSession() as s:
         async with s.get(base(gateway) + "/api/states") as r:
@@ -108,6 +131,18 @@ async def test_ws_auth_invalid_token(gateway):
     async with aiohttp.ClientSession() as s:
         ws, reply = await _ws_auth(s, url, "bogus")
         assert reply["type"] == "auth_invalid"
+        await ws.close()
+
+
+async def test_ws_get_config_redacted(gateway):
+    url = base(gateway) + "/api/websocket"
+    async with aiohttp.ClientSession() as s:
+        ws, _ = await _ws_auth(s, url, "restricted")
+        await ws.send_json({"id": 20, "type": "get_config"})
+        res = await _result(ws, 20)
+        cfg = res["result"]
+        assert cfg["latitude"] == 0 and cfg["longitude"] == 0
+        assert cfg["version"] == "2026.7.1"
         await ws.close()
 
 

@@ -9,6 +9,21 @@ from __future__ import annotations
 
 from .policy import PolicyEvaluator
 
+# Home config fields that reveal the household's physical location. A restricted
+# user needs get_config for the frontend to work, but not the home's GPS.
+_CONFIG_REDACT_KEYS = ("latitude", "longitude", "elevation")
+
+
+def redact_home_location(config: dict) -> dict:
+    """Return a copy of an HA config dict with GPS coordinates zeroed out."""
+    if not isinstance(config, dict):
+        return config
+    redacted = dict(config)
+    for key in _CONFIG_REDACT_KEYS:
+        if key in redacted:
+            redacted[key] = 0
+    return redacted
+
 
 def resolve_service_targets(
     domain: str,
