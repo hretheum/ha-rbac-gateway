@@ -1,0 +1,37 @@
+src/ha_rbac_gateway/cli.py
+  s_dd42119c482bc7::t_d07406c6fab4b1 5,10,16-21
+CODE_OF_CONDUCT.md
+  s_dd42119c482bc7::t_4bcd32e58f180a 39
+src/ha_rbac_gateway/config.py
+  s_dd42119c482bc7::t_ad04ea2cd5bcf5 55
+  s_dd42119c482bc7::t_c8e3f39ff917be 98-100
+src/ha_rbac_gateway/admin_api.py
+  s_dd42119c482bc7::t_ba7976e221388a 31-38,44-48
+  s_dd42119c482bc7::t_e2b121eb3d9e49 118
+  s_dd42119c482bc7::t_cf648574c84b4e 119-120,131,136-138
+.env.example
+  s_dd42119c482bc7::t_a22f3872e2ff1f 40-43
+src/ha_rbac_gateway/ws_proxy.py
+  s_dd42119c482bc7::t_1d442db0484474 63-66
+tests/test_admin_api.py
+  s_dd42119c482bc7::t_858ecc3b48da14 39-54
+  s_dd42119c482bc7::t_5c1a8ecf01aed0 55
+src/ha_rbac_gateway/server.py
+  s_dd42119c482bc7::t_c20cd82b504dfe 132-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "6887abb77f1112a1696d0c8a1b8e5c36adce3b3b",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
