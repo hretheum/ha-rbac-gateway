@@ -107,7 +107,11 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
         audit.allow(identity, "ws", "auth", f"passthrough={passthrough}")
 
         conn = _Connection(gw, identity, evaluator, passthrough, client, upstream)
-        await conn.run()
+        gw.register_ws(conn)
+        try:
+            await conn.run()
+        finally:
+            gw.unregister_ws(conn)
     finally:
         await upstream.close()
         await session.close()
@@ -151,6 +155,16 @@ class _Connection:
         self.upstream = upstream
         self.pending: dict[int, str] = {}   # request id -> result transform kind
         self.subs: dict[int, _Sub] = {}      # subscription id -> _Sub
+
+    async def close_now(self) -> None:
+        """Force this session shut (used for live policy revoke). Safe to call
+        from another task; the pumps end when the sockets close."""
+        for sock in (self.client, self.upstream):
+            try:
+                if not sock.closed:
+                    await sock.close()
+            except Exception as exc:  # best-effort; the session is going away
+                log.debug("close_now: %r", exc)
 
     async def run(self) -> None:
         results = await asyncio.gather(
@@ -376,23 +390,25 @@ class _Connection:
     def _transform_result(self, kind: str, data: dict) -> dict:
         if not data.get("success"):
             return data
-        if kind == "filter_states" and isinstance(data.get("result"), list):
-            data["result"] = self.ev.filter_states(data["result"])
-        elif kind == "redact_config" and isinstance(data.get("result"), dict):
-            data["result"] = redact_home_location(data["result"])
-        elif kind == "filter_panels" and isinstance(data.get("result"), dict):
+        # Every branch must fail CLOSED if HA answers with an unexpected type:
+        # an empty result, never the upstream payload passed through unfiltered.
+        result = data.get("result")
+        if kind == "filter_states":
+            data["result"] = self.ev.filter_states(result) if isinstance(result, list) else []
+        elif kind == "redact_config":
+            data["result"] = redact_home_location(result) if isinstance(result, dict) else {}
+        elif kind == "filter_panels":
             data["result"] = filter_panels(
-                data["result"], self.ev.policy.dashboards, self.ev.policy.default_dashboard)
+                result, self.ev.policy.dashboards, self.ev.policy.default_dashboard,
+            ) if isinstance(result, dict) else {}
         elif kind == "filter_entity_reg":
-            data["result"] = filter_entity_registry(data.get("result"), self._allowed_entities())
+            data["result"] = filter_entity_registry(result, self._allowed_entities())
         elif kind == "filter_entity_display":
-            data["result"] = filter_entity_registry_display(
-                data.get("result"), self._allowed_entities())
+            data["result"] = filter_entity_registry_display(result, self._allowed_entities())
         elif kind == "filter_device_reg":
-            data["result"] = filter_by_key(data.get("result"), "id", self.ev.allowed_device_ids())
+            data["result"] = filter_by_key(result, "id", self.ev.allowed_device_ids())
         elif kind == "filter_area_reg":
-            data["result"] = filter_by_key(
-                data.get("result"), "area_id", self.ev.allowed_area_ids())
+            data["result"] = filter_by_key(result, "area_id", self.ev.allowed_area_ids())
         return data
 
     def _allowed_entities(self) -> set[str]:

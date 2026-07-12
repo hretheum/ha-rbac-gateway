@@ -85,6 +85,22 @@ async def test_admin_config_not_redacted(gateway):
     assert cfg["latitude"] != 0  # admin passthrough keeps real coordinates
 
 
+async def test_rest_states_malformed_upstream_fails_closed(gateway):
+    # If HA answers with an unexpected shape, the gateway must NOT forward it raw.
+    async with aiohttp.ClientSession() as s:
+        async with s.get(base(gateway) + "/api/states?_malform=1", headers=RESTRICTED) as r:
+            assert r.status == 200
+            body = await r.json()
+    assert body == []  # fail closed, not the upstream dict
+
+
+async def test_rest_config_malformed_upstream_fails_closed(gateway):
+    async with aiohttp.ClientSession() as s:
+        async with s.get(base(gateway) + "/api/config?_malform=1", headers=RESTRICTED) as r:
+            body = await r.json()
+    assert body == {}  # fail closed, not the upstream list
+
+
 async def test_rest_missing_token_401(gateway):
     async with aiohttp.ClientSession() as s:
         async with s.get(base(gateway) + "/api/states") as r:
@@ -155,6 +171,16 @@ async def test_ws_get_states_filtered(gateway):
         res = await _result(ws, 5)
         ids = {e["entity_id"] for e in res["result"]}
         assert ids == {"light.kitchen", "sensor.temp"}
+        await ws.close()
+
+
+async def test_ws_get_states_malformed_upstream_fails_closed(gateway):
+    url = base(gateway) + "/api/websocket"
+    async with aiohttp.ClientSession() as s:
+        ws, _ = await _ws_auth(s, url, "restricted")
+        await ws.send_json({"id": 50, "type": "get_states", "_malform": True})
+        res = await _result(ws, 50)
+        assert res["result"] == []  # fail closed, not the upstream dict
         await ws.close()
 
 

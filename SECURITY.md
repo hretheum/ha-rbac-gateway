@@ -94,6 +94,11 @@ access." The admin's own direct access to HA is unaffected either way — the
 gateway only ever adds restriction, never adds a path around HA's own auth
 for the admin.
 
+Policy changes apply live: editing or revoking a user's policy (via the admin
+API/panel) reloads the policy set **and force-closes that user's open
+WebSocket sessions**, so a revoke takes effect immediately rather than waiting
+for the client to reconnect. REST requests are re-evaluated per request.
+
 ### Deployment cautions
 
 - Bind the gateway to the interface appropriate for its trust boundary —
@@ -109,3 +114,8 @@ for the admin.
 - Restricted users' policy (which entities/areas/domains they can reach) is
   only as good as its filtering strategy — review new allowlist entries and
   policy grants with the same scrutiny you'd give firewall rules.
+- A `control` grant means the **full Home Assistant service capability** for
+  that entity's domain, with caller-chosen `service_data`, not just "toggle
+  this entity." The gateway validates the *target* entity, but HA services can
+  accept free-form parameters (filenames, payloads, etc.). Grant `control` only
+  where you'd trust the user with everything that entity's services can do.

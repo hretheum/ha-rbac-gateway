@@ -35,6 +35,7 @@ class Gateway:
             config.registry_refresh_interval, config.registry_stale_max,
         )
         self.policies = PolicyStore.load_dir(config.policy_dir)
+        self.live_ws: set = set()  # open _Connection objects, for live revoke
         self.canary = CanaryRunner(self)
         # http: decodes responses (for endpoints we parse + filter).
         # http_raw: no auto-decompress, for transparent byte-for-byte passthrough
@@ -54,6 +55,24 @@ class Gateway:
         new = PolicyStore.load_dir(self.config.policy_dir)
         self.policies = new
         log.info("policies reloaded (%d)", len(new.all()))
+
+    def register_ws(self, conn) -> None:
+        self.live_ws.add(conn)
+
+    def unregister_ws(self, conn) -> None:
+        self.live_ws.discard(conn)
+
+    async def disconnect_user(self, key: str) -> int:
+        """Force-close a user's open WebSocket sessions so a policy change or
+        revoke takes effect immediately (the frontend reconnects and picks up
+        the new policy, or is denied if revoked)."""
+        victims = [c for c in list(self.live_ws)
+                   if key in (c.identity.user_id, c.identity.name)]
+        for c in victims:
+            await c.close_now()
+        if victims:
+            log.info("disconnected %d live ws session(s) for %s", len(victims), key)
+        return len(victims)
 
     async def backend_ws(self, types: list[str]) -> dict:
         """Run a list of parameterless WS commands with the backend token,

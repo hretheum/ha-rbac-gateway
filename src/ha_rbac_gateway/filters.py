@@ -162,7 +162,7 @@ def filter_entity_registry(entries: list, allowed_entities: set) -> list:
 def filter_entity_registry_display(result: dict, allowed_entities: set) -> dict:
     """Filter the {entity_categories, entities:[...]} list_for_display payload."""
     if not isinstance(result, dict):
-        return result
+        return {"entity_categories": [], "entities": []}  # fail closed on bad shape
     out = dict(result)
     out["entities"] = filter_entity_registry(result.get("entities", []), allowed_entities)
     return out

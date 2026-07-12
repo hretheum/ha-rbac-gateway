@@ -65,12 +65,16 @@ CONFIG = {
 async def _config(request):
     if _identity_for(_rest_token(request)) is None:
         return web.json_response({"message": "unauthorized"}, status=401)
+    if request.query.get("_malform"):  # simulate an unexpected upstream shape
+        return web.json_response(["not", "a", "dict"])
     return web.json_response(dict(CONFIG))
 
 
 async def _states(request):
     if _identity_for(_rest_token(request)) is None:
         return web.json_response({"message": "unauthorized"}, status=401)
+    if request.query.get("_malform"):  # simulate an unexpected upstream shape
+        return web.json_response({"unexpected": "not a list"})
     return web.json_response(list(STATES.values()))
 
 
@@ -138,6 +142,9 @@ async def _ws_command(ws, data, identity):
     if mtype == "auth/current_user":
         await ws.send_json(ok(identity))
     elif mtype == "get_states":
+        if data.get("_malform"):  # unexpected upstream shape (should fail closed)
+            await ws.send_json(ok({"unexpected": "not a list"}))
+            return
         # Sent as a coalesced one-element JSON array frame (HA batches messages
         # this way); exercises the gateway's array-unpacking path.
         await ws.send_str(json.dumps([ok(list(STATES.values()))]))

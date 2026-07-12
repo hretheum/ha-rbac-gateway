@@ -1,5 +1,7 @@
 """Admin API: admin-gated policy management with live reload."""
 
+import asyncio
+
 import aiohttp
 import pytest
 
@@ -98,6 +100,42 @@ async def test_put_requires_admin(gateway):
         async with s.put(base(gateway) + "/rbac-admin/api/policies/u1",
                          headers=RESTRICTED, json={"user": {"id": "u1"}}) as r:
             assert r.status == 403
+
+
+async def test_revoke_closes_live_ws_session(gateway):
+    # Deleting a user's policy must force-close their open WebSocket, not wait
+    # for reconnect (README/panel promise "locked out" / "live").
+    ws_url = base(gateway) + "/api/websocket"
+    async with aiohttp.ClientSession() as s:
+        ws = await s.ws_connect(ws_url)
+        await ws.receive_json()
+        await ws.send_json({"type": "auth", "access_token": "restricted"})
+        assert (await ws.receive_json())["type"] == "auth_ok"
+        await ws.send_json({"id": 1, "type": "get_states"})
+        while True:
+            m = await ws.receive_json()
+            if m.get("id") == 1 and m.get("type") == "result":
+                assert len(m["result"]) == 2
+                break
+
+        async with aiohttp.ClientSession() as a:
+            async with a.delete(base(gateway) + "/rbac-admin/api/policies/u1",
+                                headers=ADMIN) as resp:
+                assert resp.status == 200
+
+        # the server should close the live socket promptly
+        closed = False
+        for _ in range(20):
+            try:
+                msg = await asyncio.wait_for(ws.receive(), timeout=1.0)
+            except TimeoutError:
+                break
+            if msg.type in (aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSING,
+                            aiohttp.WSMsgType.CLOSED):
+                closed = True
+                break
+        assert closed
+        await ws.close()
 
 
 async def test_delete_policy_locks_out(gateway):

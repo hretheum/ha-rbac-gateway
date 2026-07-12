@@ -227,6 +227,9 @@ class AdminApi:
         except PolicyError as exc:
             return self._json(request, {"error": "reload_failed", "message": str(exc)},
                               status=500)
+        # Apply live: drop the user's open sessions so they reconnect under the
+        # new policy (edits and revokes both take effect immediately).
+        await self.gw.disconnect_user(key)
         audit.allow(identity, "admin", "PUT", f"policy {filename}")
         return self._json(request, {"ok": True, "file": filename})
 
@@ -247,6 +250,7 @@ class AdminApi:
             _copy(path, f"{path}.bak-{time.strftime('%Y%m%d%H%M%S')}")
             os.remove(path)
         self.gw.reload_policies()
+        await self.gw.disconnect_user(key)  # cut any live session immediately
         audit.allow(identity, "admin", "DELETE", f"policy {filename}")
         return self._json(request, {"ok": True})
 

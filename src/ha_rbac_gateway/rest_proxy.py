@@ -97,8 +97,9 @@ class RestProxy:
 
     async def _states_list(self, request, evaluator, identity) -> web.StreamResponse:
         status, headers, body = await self._fetch_json(request)
-        if status == 200 and isinstance(body, list):
-            body = evaluator.filter_states(body)
+        if status == 200:
+            # Fail closed if HA answers with an unexpected shape.
+            body = evaluator.filter_states(body) if isinstance(body, list) else []
             audit.allow(identity, "rest", "GET", f"/api/states -> {len(body)} entities")
         return web.json_response(body, status=status, headers=_clean(headers))
 
@@ -111,8 +112,8 @@ class RestProxy:
 
     async def _config_redacted(self, request, identity) -> web.StreamResponse:
         status, headers, body = await self._fetch_json(request)
-        if status == 200 and isinstance(body, dict):
-            body = redact_home_location(body)
+        if status == 200:
+            body = redact_home_location(body) if isinstance(body, dict) else {}
         audit.allow(identity, "rest", "GET", "/api/config (location redacted)")
         return web.json_response(body, status=status, headers=_clean(headers))
 
@@ -145,8 +146,8 @@ class RestProxy:
         audit.allow(identity, "rest", "POST", f"/api/services/{domain}/{service} ({reason})")
         # Re-issue with the body we validated; filter the returned changed-states list.
         status, headers, resp_body = await self._fetch_json(request, json_body=body)
-        if status in (200, 201) and isinstance(resp_body, list):
-            resp_body = evaluator.filter_states(resp_body)
+        if status in (200, 201):
+            resp_body = evaluator.filter_states(resp_body) if isinstance(resp_body, list) else []
         return web.json_response(resp_body, status=status, headers=_clean(headers))
 
     # -- transport ------------------------------------------------------------
