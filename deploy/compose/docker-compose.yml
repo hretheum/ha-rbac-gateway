@@ -19,7 +19,9 @@ services:
     ports:
       - "127.0.0.1:8124:8124"
     volumes:
-      - ./policies:/config/policies:ro
+      # read-write so the admin panel can save policies; append :ro if you only
+      # edit policy files by hand and keep ADMIN_API_ENABLED=false.
+      - ./policies:/config/policies
       - ./data:/data
     # If HA runs in a sibling container on the same host, point HA_URL at it and
     # attach the same network here instead of using 127.0.0.1.

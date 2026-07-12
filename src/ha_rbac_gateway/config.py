@@ -51,6 +51,8 @@ class GatewayConfig:
     canary_allowed_read_entity: str
     canary_forbidden_entity: str
 
+    admin_api_enabled: bool
+
     log_level: str
 
     @property
@@ -91,5 +93,6 @@ def load_config(env: Mapping[str, str] | None = None) -> GatewayConfig:
         canary_interval=_int(src, "CANARY_INTERVAL", 21600),
         canary_allowed_read_entity=src.get("CANARY_ALLOWED_READ_ENTITY", ""),
         canary_forbidden_entity=src.get("CANARY_FORBIDDEN_ENTITY", "sun.sun"),
+        admin_api_enabled=src.get("ADMIN_API_ENABLED", "true").lower() not in ("0", "false", "no"),
         log_level=src.get("LOG_LEVEL", "INFO").upper(),
     )

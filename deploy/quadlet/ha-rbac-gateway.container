@@ -20,7 +20,9 @@ ContainerName=ha-rbac-gateway
 # Loopback-only publish; front it with TLS for untrusted networks.
 PublishPort=127.0.0.1:8124:8124
 EnvironmentFile=%h/ha-rbac-gateway/.env
-Volume=%h/ha-rbac-gateway/policies:/config/policies:ro,Z
+# Read-write so the admin panel can save policies; use :ro,Z if you only edit
+# policy files by hand and keep ADMIN_API_ENABLED=false.
+Volume=%h/ha-rbac-gateway/policies:/config/policies:Z
 Volume=%h/ha-rbac-gateway/data:/data:Z
 # Modest guardrails so the gateway can't starve a small host:
 PodmanArgs=--memory=256m --cpus=1 --pids-limit=256

@@ -62,6 +62,26 @@ class UserPolicy:
         extra = {self.default_dashboard} if self.default_dashboard else set()
         return self.allowed_dashboards | frozenset(extra)
 
+    def to_editor_dict(self) -> dict:
+        """Serialize back to the editable shape the admin UI uses."""
+        def merged(kind: str) -> list[dict]:
+            read = getattr(self.read, kind)
+            control = getattr(self.control, kind)
+            out = [{"id": i, "access": CONTROL} for i in sorted(control)]
+            out += [{"id": i, "access": READ} for i in sorted(read - control)]
+            return out
+
+        return {
+            "user": {"id": self.match_user_id, "name": self.match_user_name},
+            "entities": merged("entities"),
+            "domains": merged("domains"),
+            "areas": merged("areas"),
+            "dashboards": {
+                "default": self.default_dashboard,
+                "allowed": sorted(self.allowed_dashboards),
+            },
+        }
+
 
 def _require_mapping(node: object, where: str) -> dict:
     if not isinstance(node, dict):
@@ -200,6 +220,9 @@ class PolicyStore:
         for p in self._policies:
             out |= p.dashboards
         return frozenset(out)
+
+    def all(self) -> list[UserPolicy]:
+        return list(self._policies)
 
 
 class PolicyEvaluator:

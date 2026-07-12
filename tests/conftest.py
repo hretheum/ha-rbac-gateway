@@ -152,6 +152,18 @@ async def _ws_command(ws, data, identity):
     elif mtype == "config/area_registry/list":
         await ws.send_json(ok([{"area_id": "kitchen", "name": "Kitchen"},
                                {"area_id": "vault", "name": "Vault"}]))
+    elif mtype == "config/auth/list":
+        await ws.send_json(ok([
+            {"id": "u1", "name": "Restricted", "group_ids": ["system-users"],
+             "system_generated": False, "is_owner": False},
+            {"id": "admin1", "name": "Admin", "group_ids": ["system-admin"],
+             "system_generated": False, "is_owner": True},
+            {"id": "sys", "name": "Supervisor", "group_ids": ["system-admin"],
+             "system_generated": True, "is_owner": False},
+        ]))
+    elif mtype == "lovelace/dashboards/list":
+        await ws.send_json(ok([{"url_path": "guest-home", "title": "Guest"},
+                               {"url_path": "dashboard-secret", "title": "Secret"}]))
     elif mtype == "config/floor_registry/list":
         await ws.send_json(ok([{"floor_id": "ground", "name": "Ground"}]))
     elif mtype == "subscribe_entities":

@@ -136,6 +136,36 @@ python -m ha_rbac_gateway.canary
 3. Restart the gateway.
 4. Point the user at the gateway's URL instead of HA's.
 
+## Admin panel (optional)
+
+Instead of editing policy YAML by hand, you can manage users from a **"RBAC"
+item in Home Assistant's sidebar** (admins only). It's a small web component that
+talks to the gateway's admin API and applies changes live (no restart).
+
+1. Copy the component into HA's `www/` folder:
+   ```bash
+   cp web/rbac-panel.js /path/to/homeassistant/config/www/rbac-panel.js
+   ```
+2. Register it in HA `configuration.yaml` and restart HA once:
+   ```yaml
+   panel_custom:
+     - name: rbac-panel
+       sidebar_title: RBAC
+       sidebar_icon: mdi:shield-account
+       url_path: rbac
+       module_url: /local/rbac-panel.js
+       require_admin: true
+       embed_iframe: false
+       config:
+         gateway_base: http://<gateway-host>:8124   # reachable from your browser
+   ```
+3. Make sure the gateway's `policies` directory is mounted **read-write** (the
+   admin API writes policy files) — see the deploy files. The API is gated on an
+   HA admin token, and `ADMIN_API_ENABLED` (default on) can turn it off.
+
+The admin's browser must be able to reach `gateway_base` (LAN, http). Every write
+is validated, backs up the previous file, and hot-reloads the running policy set.
+
 ## Disabling / rollback (important)
 
 Disabling the gateway is **lockout, not passthrough**:

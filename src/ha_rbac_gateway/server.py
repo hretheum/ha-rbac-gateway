@@ -7,6 +7,7 @@ import logging
 import aiohttp
 from aiohttp import web
 
+from .admin_api import AdminApi
 from .appkeys import GATEWAY
 from .canary import CanaryRunner
 from .config import GatewayConfig
@@ -46,6 +47,31 @@ class Gateway:
         if policy is None:
             return None
         return PolicyEvaluator(policy, self.registry)
+
+    def reload_policies(self) -> None:
+        """Reload policies from disk, swapping the store only if the new set
+        parses. A bad file therefore can't take the gateway down."""
+        new = PolicyStore.load_dir(self.config.policy_dir)
+        self.policies = new
+        log.info("policies reloaded (%d)", len(new.all()))
+
+    async def backend_ws(self, types: list[str]) -> dict:
+        """Run a list of parameterless WS commands with the backend token,
+        returning {type: result}. Used by the admin API for context data."""
+        out: dict = {}
+        async with aiohttp.ClientSession() as s, s.ws_connect(self.ha_ws_url) as ws:
+            await ws.receive_json()  # auth_required
+            await ws.send_json({"type": "auth", "access_token": self.config.ha_token})
+            if (await ws.receive_json()).get("type") != "auth_ok":
+                raise RuntimeError("backend token rejected")
+            for i, mtype in enumerate(types, 1):
+                await ws.send_json({"id": i, "type": mtype})
+                while True:
+                    m = await ws.receive_json()
+                    if m.get("id") == i and m.get("type") == "result":
+                        out[mtype] = m.get("result") if m.get("success") else None
+                        break
+        return out
 
     async def _fetch_version(self) -> None:
         try:
@@ -93,6 +119,8 @@ def build_app(config: GatewayConfig) -> web.Application:
     app[GATEWAY] = gw
     app.router.add_get("/healthz", _health)
     app.router.add_get("/api/websocket", handle_ws)
+    if config.admin_api_enabled:
+        AdminApi(gw).add_routes(app)  # /rbac-admin/api/* before the catch-all
     app.router.add_route("*", "/{tail:.*}", rest.handle)
     app.on_startup.append(gw.on_startup)
     app.on_cleanup.append(gw.on_cleanup)
