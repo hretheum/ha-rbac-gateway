@@ -28,14 +28,24 @@ log = logging.getLogger(__name__)
 _ACCESS = ("read", "control")
 
 
-def _cors(request: web.Request, extra: dict | None = None) -> dict:
-    origin = request.headers.get("Origin", "*")
+def _cors(request: web.Request, allowed: tuple = (), extra: dict | None = None) -> dict:
+    """CORS headers for the cross-origin admin panel.
+
+    With `ADMIN_ALLOWED_ORIGINS` unset (`allowed` empty) the request Origin is
+    reflected (convenient default; the API is still bearer-token gated). Set it to
+    a comma-separated allowlist to only answer those origins.
+    """
+    origin = request.headers.get("Origin")
     headers = {
-        "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Authorization, Content-Type",
         "Vary": "Origin",
     }
+    if not allowed:
+        headers["Access-Control-Allow-Origin"] = origin or "*"
+    elif origin in allowed:
+        headers["Access-Control-Allow-Origin"] = origin
+    # else: no Allow-Origin header — the browser blocks a disallowed origin.
     if extra:
         headers.update(extra)
     return headers
@@ -105,7 +115,9 @@ class AdminApi:
     # -- helpers -------------------------------------------------------------
 
     async def preflight(self, request: web.Request) -> web.Response:
-        return web.Response(status=204, headers=_cors(request))
+        return web.Response(
+            status=204, headers=_cors(request, self.gw.config.admin_allowed_origins)
+        )
 
     async def _require_admin(self, request: web.Request):
         auth = request.headers.get("Authorization", "")
@@ -116,12 +128,14 @@ class AdminApi:
             return None, web.json_response(
                 {"error": "forbidden", "message": "admin token required"},
                 status=403,
-                headers=_cors(request),
+                headers=_cors(request, self.gw.config.admin_allowed_origins),
             )
         return identity, None
 
     def _json(self, request, data, status=200):
-        return web.json_response(data, status=status, headers=_cors(request))
+        return web.json_response(
+            data, status=status, headers=_cors(request, self.gw.config.admin_allowed_origins)
+        )
 
     def _existing_file_for(self, key: str) -> str:
         """Reuse the file a user's policy already lives in, else a new name."""

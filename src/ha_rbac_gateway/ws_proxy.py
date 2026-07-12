@@ -60,7 +60,10 @@ class _Sub:
 
 async def handle_ws(request: web.Request) -> web.WebSocketResponse:
     gw = request.app[GATEWAY]
-    client = web.WebSocketResponse(heartbeat=30, max_msg_size=0)
+    # Cap frame size on the (pre-auth) client socket so an unauthenticated peer
+    # can't make the server buffer an arbitrarily large frame. HA WS commands are
+    # tiny; 16 MiB is far above anything legitimate.
+    client = web.WebSocketResponse(heartbeat=30, max_msg_size=16 * 1024 * 1024)
     await client.prepare(request)
 
     # --- delegated auth handshake ---

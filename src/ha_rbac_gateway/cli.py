@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
+import argparse
 import logging
 
 from aiohttp import web
 
+from . import __version__
 from .config import ConfigError, load_config
 from .server import build_app
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        prog="ha-rbac-gateway", description="Fail-closed RBAC gateway for Home Assistant"
+    )
+    parser.add_argument("--version", action="version", version=f"ha-rbac-gateway {__version__}")
+    parser.parse_args()
+
     try:
         config = load_config()
     except ConfigError as exc:

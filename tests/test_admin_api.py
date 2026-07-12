@@ -36,6 +36,23 @@ async def test_context_requires_admin(gateway):
     assert "light" in ctx["domains"]
 
 
+def test_cors_allowlist_behaviour():
+    from types import SimpleNamespace
+
+    from ha_rbac_gateway.admin_api import _cors
+
+    req = SimpleNamespace(headers={"Origin": "http://ha.local:8123"})
+    # empty allowlist -> reflect the origin (default)
+    assert _cors(req, ()).get("Access-Control-Allow-Origin") == "http://ha.local:8123"
+    # origin on the allowlist -> reflected
+    assert (
+        _cors(req, ("http://ha.local:8123",)).get("Access-Control-Allow-Origin")
+        == "http://ha.local:8123"
+    )
+    # origin not on a non-empty allowlist -> no Allow-Origin header (browser blocks)
+    assert "Access-Control-Allow-Origin" not in _cors(req, ("http://other:8123",))
+
+
 async def test_preflight_cors(gateway):
     async with aiohttp.ClientSession() as s:
         async with s.options(

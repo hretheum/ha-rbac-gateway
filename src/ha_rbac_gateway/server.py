@@ -129,11 +129,12 @@ class Gateway:
 
 
 async def _health(request: web.Request) -> web.Response:
+    # Unauthenticated (orchestrators poll it), so it exposes only up/down —
+    # no HA version or other detail an external probe could use for recon.
     gw: Gateway = request.app[GATEWAY]
     return web.json_response(
         {
             "status": "tripped" if gw.trip.is_tripped() else "ok",
-            "ha_version": gw.ha_version,
             "registry_age_s": round(gw.registry.age(), 1),
         }
     )
