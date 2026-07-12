@@ -41,7 +41,7 @@ leaking. See [docs/architecture.md](docs/architecture.md) for the full model.
 ## Quick start (docker-compose)
 
 ```bash
-git clone https://github.com/OWNER/ha-rbac-gateway
+git clone https://github.com/hretheum/ha-rbac-gateway
 cd ha-rbac-gateway/deploy/compose
 
 cp ../../.env.example .env

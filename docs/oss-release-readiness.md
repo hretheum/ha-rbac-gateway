@@ -27,9 +27,8 @@ and positioning. Rough core effort: ~2–3 focused days.
       regression test asserts the live socket closes on revoke.
 
 ### Release engineering
-- [ ] Replace the literal `OWNER` placeholder (README, compose, quadlet,
-      `pyproject.toml` Homepage) with the real GitHub org/user — every install
-      command currently points at a non-resolving URL. `[S]`
+- [x] Replace the literal `OWNER` placeholder with `hretheum` (README, compose,
+      quadlet, `pyproject.toml` URLs). **Done.**
 - [ ] Decide packaging of non-`src/` assets: `web/rbac-panel.js` and
       `examples/` are excluded from the wheel today, but the README tells users
       to `cp` them. Ship them as package data or document "pip = server-only,

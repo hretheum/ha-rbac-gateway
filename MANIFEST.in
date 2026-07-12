@@ -1,0 +1,8 @@
+include LICENSE
+include README.md
+include CHANGELOG.md
+include .env.example
+recursive-include web *.js
+recursive-include examples *
+recursive-include deploy *
+recursive-include docs *.md

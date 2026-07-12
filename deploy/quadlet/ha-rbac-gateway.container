@@ -14,7 +14,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Container]
-Image=ghcr.io/OWNER/ha-rbac-gateway:latest
+Image=ghcr.io/hretheum/ha-rbac-gateway:latest
 AutoUpdate=registry
 ContainerName=ha-rbac-gateway
 # Loopback-only publish; front it with TLS for untrusted networks.

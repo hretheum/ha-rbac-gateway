@@ -8,7 +8,7 @@
 # access from untrusted networks (see SECURITY.md).
 services:
   ha-rbac-gateway:
-    image: ghcr.io/OWNER/ha-rbac-gateway:latest
+    image: ghcr.io/hretheum/ha-rbac-gateway:latest
     # To build locally instead of pulling, comment out `image:` above and use:
     # build:
     #   context: ../..

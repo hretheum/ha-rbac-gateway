@@ -4,13 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ha-rbac-gateway"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Fail-closed authorization gateway (RBAC) for Home Assistant: per-user entity/area/domain access without giving users admin"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.12"
 dependencies = [
-    "aiohttp>=3.9,<4",
+    # aiohttp parses untrusted HTTP/WS framing here; floor at a CVE-patched
+    # baseline and let CI (pip-audit) catch future advisories.
+    "aiohttp>=3.13.4,<4",
     "PyYAML>=6,<7",
 ]
 classifiers = [
@@ -24,7 +26,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/OWNER/ha-rbac-gateway"
+Homepage = "https://github.com/hretheum/ha-rbac-gateway"
+Repository = "https://github.com/hretheum/ha-rbac-gateway"
+Issues = "https://github.com/hretheum/ha-rbac-gateway/issues"
 
 [project.scripts]
 ha-rbac-gateway = "ha_rbac_gateway.cli:main"
@@ -35,6 +39,9 @@ dev = [
     "pytest-asyncio>=0.23",
     "ruff>=0.4",
 ]
+
+[tool.setuptools.dynamic]
+version = { attr = "ha_rbac_gateway.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
