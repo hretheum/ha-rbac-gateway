@@ -51,8 +51,8 @@ sanitized demo (called out below).
 - [x] Badges; more example policies (area, domain+mixed); `--version` flag;
       "where does this run?" note.
 - [x] "Why not an add-on?" note in the architecture doc.
-- [ ] Pin GitHub Actions to commit SHAs — deferred to Dependabot (which now
-      tracks the `github-actions` ecosystem) rather than hand-pinning offline. `[S]`
+- [x] Pin GitHub Actions to commit SHAs (Dependabot tracks the `github-actions`
+      ecosystem to keep the pins fresh).
 - [ ] Digest-pin the Docker base image — deferred to Dependabot (`docker`
       ecosystem). `[S]`
 - [ ] Wire up the unused `REST_FRONTEND_PREFIXES` — deferred (a strict static
