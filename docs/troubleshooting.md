@@ -5,15 +5,17 @@ Symptom → likely cause → fix. Most first-time issues are about **reachabilit
 
 ## `docker compose up` / the Quadlet fails to start on an image pull
 
-**Cause:** no container image is published yet; the compose file and Quadlet
-reference `ghcr.io/hretheum/ha-rbac-gateway:latest`, which doesn't exist until a
-release.
+**Cause:** the image can't be pulled — either the published ghcr package is still
+private (auth error), or you're offline.
 
-**Fix:** build it locally under that tag first, then start:
+**Fix:** build it locally under the tag the deploy files expect, then start:
 
 ```bash
 docker build -t ghcr.io/hretheum/ha-rbac-gateway:latest .   # or: podman build ...
 ```
+
+(The published multi-arch image lives at `ghcr.io/hretheum/ha-rbac-gateway`; if
+you maintain the repo, set the package to public to allow anonymous pulls.)
 
 ## Admin panel shows "Could not reach the gateway admin API"
 

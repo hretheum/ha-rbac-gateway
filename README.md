@@ -53,13 +53,18 @@ leaking. See [docs/architecture.md](docs/architecture.md) for the full model.
 > run the gateway on a **separate machine** (any Docker/Podman host) pointed at your HA. It is not
 > an HA add-on — see [why](docs/architecture.md#why-not-a-home-assistant-add-on).
 
+A prebuilt multi-arch image is published at `ghcr.io/hretheum/ha-rbac-gateway`
+(`latest`, `0.1`, `0.1.0`). If a `docker pull` fails with an auth error the
+package is still private — build locally as shown below, or make the package
+public. The build-from-source path below always works.
+
 ## Quick start (docker-compose)
 
 ```bash
 git clone https://github.com/hretheum/ha-rbac-gateway
 cd ha-rbac-gateway
 
-# No image is published yet — build it locally:
+# Build locally (always works, no registry auth needed):
 docker build -t ghcr.io/hretheum/ha-rbac-gateway:latest .
 
 cd deploy/compose

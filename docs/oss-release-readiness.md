@@ -4,9 +4,9 @@ Checklist from a four-dimension review (security, release engineering,
 docs/adoption, HA-ecosystem fit). `[x]` done in the release-prep pass, `[ ]`
 remaining. Effort tags: `[S]`/`[M]`/`[L]`.
 
-**Status:** the codebase, packaging, CI, and docs are release-ready. What's left
-is the human publish step and a few items that need an external decision or a
-sanitized demo (called out below).
+**Status:** **published** at https://github.com/hretheum/ha-rbac-gateway (v0.1.0,
+CI green, multi-arch image on ghcr). Remaining items need an external decision, a
+one-click package-visibility flip, or a sanitized demo (called out below).
 
 ## MUST — before publishing
 
@@ -21,9 +21,10 @@ sanitized demo (called out below).
 - [x] Packaging: MANIFEST.in ships `web/`, `examples/`, `deploy/`, `docs/` in the
       sdist; the pip wheel is server-only and the README says to build-first /
       take the panel from the repo. `python -m build` + `twine check` pass.
-- [x] `CHANGELOG.md` (Keep a Changelog) + `v0.1.0` tag created locally.
-- [ ] **Push the `v0.1.0` tag** — the deliberate human step; CI then builds and
-      publishes the multi-arch image. `[S, human]`
+- [x] `CHANGELOG.md` (Keep a Changelog) + `v0.1.0` tag pushed; CI built and
+      published the multi-arch image to ghcr.
+- [ ] **Make the ghcr package public** (Package settings → Change visibility) so
+      anonymous `docker pull` works; can't be done via API. `[S, human]`
 
 ### Positioning / legal
 - [x] Non-affiliation disclaimer in the README.
