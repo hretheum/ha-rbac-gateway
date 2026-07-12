@@ -1,0 +1,46 @@
+tests/conftest.py
+  s_dd42119c482bc7::t_543b0f0c5aaf10 155-166
+src/ha_rbac_gateway/admin_api.py
+  s_dd42119c482bc7::t_1eb428158ac287 1-218,220-256
+  s_dd42119c482bc7::t_759cf813cc5639 219
+src/ha_rbac_gateway/policy.py
+  s_dd42119c482bc7::t_a5e9fae3ef505e 224-226
+  s_dd42119c482bc7::t_0d4eae694729aa 65-84
+.env.example
+  s_dd42119c482bc7::t_33ba3db8183df0 36-40
+docs/admin-ui-design.md
+  s_dd42119c482bc7::t_dd4db9c09f4325 1-47
+src/ha_rbac_gateway/server.py
+  s_dd42119c482bc7::t_46181900a2cf45 51-75
+  s_dd42119c482bc7::t_866c097a158032 122-123
+  s_dd42119c482bc7::t_950cebd32d87a3 10
+deploy/quadlet/ha-rbac-gateway.container
+  s_dd42119c482bc7::t_c4b7ad0d788735 23-25
+src/ha_rbac_gateway/config.py
+  s_dd42119c482bc7::t_c32ce1d99fa870 54-55
+  s_dd42119c482bc7::t_db4bbbed502f50 96
+README.md
+  s_dd42119c482bc7::t_2e1409d8e6907e 139-168
+deploy/compose/docker-compose.yml
+  s_dd42119c482bc7::t_16cd2eb9632830 22-24
+tests/test_admin_api.py
+  s_dd42119c482bc7::t_d47a499af627e2 1-109
+web/rbac-panel.js
+  s_dd42119c482bc7::t_6b4ae7168a3fe0 1-311
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "15e64fb89575a960f1b8f9281db15c42bd00465d",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
