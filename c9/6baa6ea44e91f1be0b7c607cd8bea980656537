@@ -1,0 +1,52 @@
+src/ha_rbac_gateway/ws_proxy.py
+  s_dd42119c482bc7::t_5de28ed822cb1a 162-167
+  s_dd42119c482bc7::t_30f7a82df61375 393-400,402-403,405,407,409,411
+  s_dd42119c482bc7::t_e96a1c1f1d9ad9 110-114
+  s_dd42119c482bc7::t_746d1eb86156d5 159-161,168
+tests/test_integration.py
+  s_dd42119c482bc7::t_1d5719fb8aae4f 88-103
+  s_dd42119c482bc7::t_2ef51a9f723d74 177-186
+src/ha_rbac_gateway/rest_proxy.py
+  s_dd42119c482bc7::t_476c032ad31d56 149-150
+  s_dd42119c482bc7::t_bfe4af67f7d668 115-116
+  s_dd42119c482bc7::t_c7fcd8482533f1 100-102
+SECURITY.md
+  s_dd42119c482bc7::t_effed5190b716b 117-121
+  s_dd42119c482bc7::t_0fe1151402c34e 97-101
+src/ha_rbac_gateway/server.py
+  s_dd42119c482bc7::t_89c8e45800a62e 38
+  s_dd42119c482bc7::t_058f8b4f4c1b45 59-76
+docs/oss-release-readiness.md
+  s_dd42119c482bc7::t_aaab482d080ee5 1-15,17,28-107
+  s_dd42119c482bc7::t_bb411af2bb1ca1 16,18-27
+tests/test_admin_api.py
+  s_dd42119c482bc7::t_b8ad8584f76831 3-4
+  s_dd42119c482bc7::t_4855497b38c16b 131
+  s_dd42119c482bc7::t_5834379be05f4c 129-130,132
+  s_dd42119c482bc7::t_6d71214c5da516 105-128,133-140
+tests/conftest.py
+  s_dd42119c482bc7::t_2cbc71c8a388d1 145-147
+  s_dd42119c482bc7::t_fa470272bf8aff 68-69
+  s_dd42119c482bc7::t_8baa9e044e3945 76-77
+src/ha_rbac_gateway/filters.py
+  s_dd42119c482bc7::t_6f1d64bee64380 165
+src/ha_rbac_gateway/admin_api.py
+  s_dd42119c482bc7::t_2d789024e8acb9 230-232
+  s_dd42119c482bc7::t_11988ede72cf37 253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "c96baa6ea44e91f1be0b7c607cd8bea980656537",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
