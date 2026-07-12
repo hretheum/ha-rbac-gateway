@@ -138,3 +138,21 @@ CI/cron (`python -m ha_rbac_gateway.canary`).
   available to restricted users. These are deliberate exclusions, not oversights.
 - Floor and label registries return empty, so a restricted user's UI shows no
   floor grouping or labels.
+
+## Why not a Home Assistant add-on?
+
+Add-ons appear in HA's sidebar through **Ingress**, which routes traffic *from*
+an already-authenticated HA session *to* the add-on — it assumes HA is the first
+thing the browser reaches and has already decided who you are. This gateway needs
+the opposite: the browser must reach the **gateway first**, before HA
+authenticates anyone, so the gateway can scope the session. That's incompatible
+with the Ingress model.
+
+Add-ons also only run on HA OS / Supervised installs, which would exclude the
+Container/Core and rootless-Podman audience this project targets. Every
+comparable "reverse proxy in front of HA" tool (Authelia, Authentik, nginx,
+Traefik) ships as a standalone container for the same reasons — so does this one.
+
+The frontend **admin panel** is a separate matter: it is a plain custom panel
+(`panel_custom`) and could plausibly be distributed on its own via HACS in the
+future; the gateway service itself stays a standalone container.

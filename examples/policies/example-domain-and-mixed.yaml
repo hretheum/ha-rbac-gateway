@@ -1,0 +1,20 @@
+# Example policy: a user who may read every sensor in the house and control the
+# lights, plus one specific extra entity. Shows domains + entities together —
+# grants are additive across entities, domains and areas.
+#
+# Copy into your POLICY_DIR and edit. Restart the gateway (or save via the admin
+# panel) to apply.
+
+user:
+  id: REPLACE-WITH-HA-USER-ID
+
+allow:
+  domains:
+    - { id: sensor, access: read }      # every sensor, read-only
+    - { id: light, access: control }    # every light, on/off/brightness
+  entities:
+    - { id: cover.garage_door, access: control }   # one extra, outside the domains above
+
+dashboards:
+  default: family
+  allowed: [family]

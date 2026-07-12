@@ -1,9 +1,16 @@
 # Policy files
 
 One YAML file per restricted user. All files in `POLICY_DIR` (default
-`/config/policies`) are loaded at startup; **restart the gateway to apply
-changes** (policies are deliberately not hot-reloaded — a change to who can see
-what should be an explicit action).
+`/config/policies`) are loaded at startup. **Editing a file by hand requires a
+gateway restart to apply**; changes made through the admin panel (or admin API)
+are validated and hot-reloaded live.
+
+A malformed policy **fails loudly at startup** with a file- and field-specific
+error and aborts — a typo can't silently widen or narrow access.
+
+Example files in this directory: `example-guest.yaml` (individual entities),
+`example-area.yaml` (whole areas), `example-domain-and-mixed.yaml` (domains +
+entities together).
 
 ## Matching a user
 

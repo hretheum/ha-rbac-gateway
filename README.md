@@ -1,9 +1,17 @@
 # ha-rbac-gateway
 
+[![CI](https://github.com/hretheum/ha-rbac-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/hretheum/ha-rbac-gateway/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+
 A fail-closed **authorization gateway** for [Home Assistant](https://www.home-assistant.io/).
 It lets you give a non-admin HA user access to **only** the entities, areas or domains you choose —
 read or control — without making them an administrator and without touching HA's internal group
 mechanism.
+
+> **Independent community project** — not affiliated with, sponsored by, or endorsed by Home
+> Assistant or the Open Home Foundation. "Home Assistant" is a trademark of the Open Home Foundation;
+> it is used here only to describe what this tool works with.
 
 Home Assistant has no public API for creating custom per-user entity permissions, so a normal
 non-admin user can see every entity. `ha-rbac-gateway` sits in front of HA as a reverse proxy:
@@ -12,7 +20,8 @@ WebSocket call is checked against a per-user policy **before** it reaches HA (**
 in the gateway**).
 
 > **Status:** v0.1 / beta. It is a security component; read [SECURITY.md](SECURITY.md) and the
-> [limitations](#limitations) before relying on it.
+> [limitations](#limitations) before relying on it. No third-party security audit has been done yet —
+> be especially careful granting `control` over life-safety entities (locks, alarms, garage doors).
 
 ## Why "fail closed"
 
@@ -38,12 +47,22 @@ leaking. See [docs/architecture.md](docs/architecture.md) for the full model.
 - A **backend token** (configured once) is used only for read-only registry lookups
   (entity → area mapping). User traffic is always forwarded with the user's own token.
 
+> **Where does this run?** The gateway is a container that sits *in front of* HA, so it needs
+> somewhere to run a container plus a reachable `HA_URL`. Home Assistant **Container** and **Core**
+> installs work directly. On **HA OS / Supervised** there is no general-purpose container host, so
+> run the gateway on a **separate machine** (any Docker/Podman host) pointed at your HA. It is not
+> an HA add-on — see [why](docs/architecture.md#why-not-a-home-assistant-add-on).
+
 ## Quick start (docker-compose)
 
 ```bash
 git clone https://github.com/hretheum/ha-rbac-gateway
-cd ha-rbac-gateway/deploy/compose
+cd ha-rbac-gateway
 
+# No image is published yet — build it locally:
+docker build -t ghcr.io/hretheum/ha-rbac-gateway:latest .
+
+cd deploy/compose
 cp ../../.env.example .env
 # edit .env: set HA_URL and HA_TOKEN (a long-lived token from HA:
 #   Profile -> Security -> Long-lived access tokens)
@@ -62,6 +81,9 @@ policy allows. Bind to loopback and put TLS in front for anything beyond a trust
 ## Quick start (Podman / Quadlet, rootless)
 
 ```bash
+# No image is published yet — build it locally under the tag the unit expects:
+podman build -t ghcr.io/hretheum/ha-rbac-gateway:latest .
+
 mkdir -p ~/ha-rbac-gateway/{policies,data}
 cp .env.example ~/ha-rbac-gateway/.env         # edit HA_URL, HA_TOKEN
 cp examples/policies/example-guest.yaml ~/ha-rbac-gateway/policies/guest.yaml
@@ -163,8 +185,12 @@ talks to the gateway's admin API and applies changes live (no restart).
    admin API writes policy files) — see the deploy files. The API is gated on an
    HA admin token, and `ADMIN_API_ENABLED` (default on) can turn it off.
 
-The admin's browser must be able to reach `gateway_base` (LAN, http). Every write
-is validated, backs up the previous file, and hot-reloads the running policy set.
+The admin's browser must be able to reach `gateway_base` directly. Two common gotchas: if HA is
+served over **https** and the gateway over http, the browser blocks the cross-origin call as mixed
+content (keep both plain http on the LAN, or put TLS in front of both); and the host **firewall**
+must allow the gateway port for devices other than `localhost`. See
+[docs/troubleshooting.md](docs/troubleshooting.md). Every write is validated, backs up the previous
+file, and hot-reloads the running policy set — a revoke also drops that user's live sessions.
 
 ## Disabling / rollback (important)
 
@@ -177,6 +203,28 @@ Disabling the gateway is **lockout, not passthrough**:
   gateway is an *additional*, narrower door, never a replacement for HA's own.
 - To force fail-closed without stopping the service, create the trip file (`touch DATA_DIR/tripped`);
   remove it to resume.
+
+## Prior art & alternatives
+
+Home Assistant has no public API for per-user entity permissions — a non-admin user's group has the
+same full entity access as admin. A substantial core RBAC proposal was declined by HA maintainers as
+needing Foundation oversight/audit resources they can't currently commit
+([architecture discussion #1374](https://github.com/home-assistant/architecture/discussions/1374)),
+which is why an external gateway is a reasonable path. If you're comparing options:
+
+- **[user-rbac](https://github.com/SamAthanas/user-rbac)** — a HA custom component that patches HA's
+  service-call handling in-process, with a GUI and template rules. Different architecture from this
+  project (in-process vs an external fail-closed proxy that also serves the filtered frontend); it is
+  early-stage but real. If you want something that lives inside HA, look there.
+- **[kiosk-mode](https://github.com/maykar/kiosk-mode) / Restriction Card** — hide the sidebar or
+  cards per user. Frontend-only: they do **not** restrict backend/API access, so a user can still
+  read or control hidden entities directly. Use them for UX, not access control.
+- **Reverse-proxy SSO** (Authelia/Authentik, `hass-auth-header`) solves *authentication* (who you
+  are), not *authorization* (what you may see). This project does the opposite: HA stays the auth
+  authority; the gateway adds per-user scoping on top.
+
+Where this project differs: an external, fail-closed reverse proxy enforcing a positive allowlist
+server-side, that also serves the filtered HA web UI and ships a sidebar admin panel.
 
 ## Limitations
 

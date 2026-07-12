@@ -1,0 +1,19 @@
+# Example policy: a housemate who controls everything in the living room and
+# reads (but can't control) everything in the kitchen. Area grants are expanded
+# to entities via HA's registry; if the registry is stale the gateway narrows to
+# static entity rules rather than guessing.
+#
+# Copy into your POLICY_DIR and edit. Restart the gateway (or save via the admin
+# panel) to apply.
+
+user:
+  id: REPLACE-WITH-HA-USER-ID
+
+allow:
+  areas:
+    - { id: living_room, access: control }
+    - { id: kitchen, access: read }
+
+dashboards:
+  default: housemate
+  allowed: [housemate]
