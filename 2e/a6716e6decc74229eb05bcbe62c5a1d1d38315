@@ -1,0 +1,19 @@
+docs/oss-release-readiness.md
+  s_dd42119c482bc7::t_1214471c8a1504 3-5,7-9,13-17,20-26,29-33,36-40,44-61,65-72,77-79,83-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "2ea6716e6decc74229eb05bcbe62c5a1d1d38315",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
