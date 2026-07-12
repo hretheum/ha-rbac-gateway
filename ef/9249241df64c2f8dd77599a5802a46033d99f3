@@ -1,0 +1,19 @@
+docs/genesis-prompt.md
+  s_dd42119c482bc7::t_db270cc7366222 1-297
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "ef9249241df64c2f8dd77599a5802a46033d99f3",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
