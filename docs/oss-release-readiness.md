@@ -5,8 +5,8 @@ docs/adoption, HA-ecosystem fit). `[x]` done in the release-prep pass, `[ ]`
 remaining. Effort tags: `[S]`/`[M]`/`[L]`.
 
 **Status:** **published** at https://github.com/hretheum/ha-rbac-gateway (v0.1.0,
-CI green, multi-arch image on ghcr). Remaining items need an external decision, a
-one-click package-visibility flip, or a sanitized demo (called out below).
+CI green, public multi-arch image on ghcr, GitHub Release). Remaining items are
+optional — an external trademark check and sanitized screenshots.
 
 ## MUST — before publishing
 
@@ -23,8 +23,7 @@ one-click package-visibility flip, or a sanitized demo (called out below).
       take the panel from the repo. `python -m build` + `twine check` pass.
 - [x] `CHANGELOG.md` (Keep a Changelog) + `v0.1.0` tag pushed; CI built and
       published the multi-arch image to ghcr.
-- [ ] **Make the ghcr package public** (Package settings → Change visibility) so
-      anonymous `docker pull` works; can't be done via API. `[S, human]`
+- [x] ghcr package is public — anonymous `docker pull` works.
 
 ### Positioning / legal
 - [x] Non-affiliation disclaimer in the README.
