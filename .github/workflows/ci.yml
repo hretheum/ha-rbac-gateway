@@ -46,6 +46,8 @@ jobs:
       - name: pip-audit (dependency vulnerabilities)
         run: |
           pip install pip-audit .
+          # Drop our own (not-yet-published) package; audit only the deps, strictly.
+          pip uninstall -y ha-rbac-gateway
           pip-audit --strict
 
   packaging:
