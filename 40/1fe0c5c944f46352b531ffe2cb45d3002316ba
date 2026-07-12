@@ -1,0 +1,25 @@
+README.md
+  s_dd42119c482bc7::t_ed013468619f9c 56-60,67
+docs/troubleshooting.md
+  s_dd42119c482bc7::t_b406d106b56f0f 8-9,11,17-18
+  s_dd42119c482bc7::t_5c03d1eb697bbe 19
+docs/oss-release-readiness.md
+  s_dd42119c482bc7::t_f1725a126cc54d 7-9
+  s_dd42119c482bc7::t_00c7c749dc3e90 24-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "401fe0c5c944f46352b531ffe2cb45d3002316ba",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
