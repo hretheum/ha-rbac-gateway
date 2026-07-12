@@ -1,0 +1,24 @@
+docs/oss-release-readiness.md
+  s_dd42119c482bc7::t_6362a617a81494 54-55
+.github/workflows/ci.yml
+  s_dd42119c482bc7::t_b2fd4883051890 86-88,93
+  s_dd42119c482bc7::t_1fae5ffb3699fd 26,43,56
+  s_dd42119c482bc7::t_92306e1f7c17f6 101
+  s_dd42119c482bc7::t_f3640b98c793cd 25,42,55,70,85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "4746fb1bfe18e46360e3c3862ff0205f6d50e0c5",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
