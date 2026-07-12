@@ -46,6 +46,7 @@ def editor_to_mapping(payload: dict) -> dict:
 
     Only trusted shaping happens here; correctness is enforced by parse_policy.
     """
+
     def rules(items) -> list[dict]:
         out = []
         for it in items or []:
@@ -114,7 +115,9 @@ class AdminApi:
             audit.deny(identity, "admin", request.method, f"{request.path} (not admin)")
             return None, web.json_response(
                 {"error": "forbidden", "message": "admin token required"},
-                status=403, headers=_cors(request))
+                status=403,
+                headers=_cors(request),
+            )
         return identity, None
 
     def _json(self, request, data, status=200):
@@ -133,27 +136,43 @@ class AdminApi:
         identity, err = await self._require_admin(request)
         if err:
             return err
-        res = await self.gw.backend_ws([
-            "config/auth/list",
-            "lovelace/dashboards/list",
-            "config/area_registry/list",
-            "config/entity_registry/list",
-            "config/device_registry/list",
-        ])
+        res = await self.gw.backend_ws(
+            [
+                "config/auth/list",
+                "lovelace/dashboards/list",
+                "config/area_registry/list",
+                "config/entity_registry/list",
+                "config/device_registry/list",
+            ]
+        )
         users = []
         for u in res.get("config/auth/list") or []:
             if u.get("system_generated"):
                 continue
             is_admin = "system-admin" in (u.get("group_ids") or [])
-            users.append({"id": u["id"], "name": u.get("name") or u["id"],
-                          "is_admin": is_admin, "is_owner": bool(u.get("is_owner"))})
-        dashboards = [{"url_path": d.get("url_path"), "title": d.get("title")}
-                      for d in (res.get("lovelace/dashboards/list") or [])
-                      if d.get("url_path")]
-        areas = [{"id": a["area_id"], "name": a.get("name") or a["area_id"]}
-                 for a in (res.get("config/area_registry/list") or []) if a.get("area_id")]
-        device_area = {d["id"]: d.get("area_id")
-                       for d in (res.get("config/device_registry/list") or []) if d.get("id")}
+            users.append(
+                {
+                    "id": u["id"],
+                    "name": u.get("name") or u["id"],
+                    "is_admin": is_admin,
+                    "is_owner": bool(u.get("is_owner")),
+                }
+            )
+        dashboards = [
+            {"url_path": d.get("url_path"), "title": d.get("title")}
+            for d in (res.get("lovelace/dashboards/list") or [])
+            if d.get("url_path")
+        ]
+        areas = [
+            {"id": a["area_id"], "name": a.get("name") or a["area_id"]}
+            for a in (res.get("config/area_registry/list") or [])
+            if a.get("area_id")
+        ]
+        device_area = {
+            d["id"]: d.get("area_id")
+            for d in (res.get("config/device_registry/list") or [])
+            if d.get("id")
+        }
         entities = []
         domains = set()
         for e in res.get("config/entity_registry/list") or []:
@@ -162,23 +181,30 @@ class AdminApi:
                 continue
             domains.add(eid.split(".", 1)[0])
             area = e.get("area_id") or device_area.get(e.get("device_id"))
-            entities.append({"id": eid, "name": e.get("name") or e.get("original_name") or eid,
-                             "area_id": area})
-        return self._json(request, {
-            "users": sorted(users, key=lambda u: u["name"].lower()),
-            "dashboards": sorted(dashboards, key=lambda d: (d.get("title") or "").lower()),
-            "areas": sorted(areas, key=lambda a: a["name"].lower()),
-            "domains": sorted(domains),
-            "entities": sorted(entities, key=lambda e: e["id"]),
-        })
+            entities.append(
+                {"id": eid, "name": e.get("name") or e.get("original_name") or eid, "area_id": area}
+            )
+        return self._json(
+            request,
+            {
+                "users": sorted(users, key=lambda u: u["name"].lower()),
+                "dashboards": sorted(dashboards, key=lambda d: (d.get("title") or "").lower()),
+                "areas": sorted(areas, key=lambda a: a["name"].lower()),
+                "domains": sorted(domains),
+                "entities": sorted(entities, key=lambda e: e["id"]),
+            },
+        )
 
     async def list_policies(self, request: web.Request) -> web.Response:
         identity, err = await self._require_admin(request)
         if err:
             return err
-        return self._json(request, {
-            "policies": [p.to_editor_dict() for p in self.gw.policies.all()],
-        })
+        return self._json(
+            request,
+            {
+                "policies": [p.to_editor_dict() for p in self.gw.policies.all()],
+            },
+        )
 
     async def get_policy(self, request: web.Request) -> web.Response:
         identity, err = await self._require_admin(request)
@@ -189,11 +215,16 @@ class AdminApi:
             if key in (p.match_user_id, p.match_user_name):
                 return self._json(request, p.to_editor_dict())
         # empty template for a user with no policy yet
-        return self._json(request, {
-            "user": {"id": key, "name": None},
-            "entities": [], "areas": [], "domains": [],
-            "dashboards": {"default": None, "allowed": []},
-        })
+        return self._json(
+            request,
+            {
+                "user": {"id": key, "name": None},
+                "entities": [],
+                "areas": [],
+                "domains": [],
+                "dashboards": {"default": None, "allowed": []},
+            },
+        )
 
     async def put_policy(self, request: web.Request) -> web.Response:
         identity, err = await self._require_admin(request)
@@ -211,8 +242,7 @@ class AdminApi:
             text = yaml.safe_dump(mapping, allow_unicode=True, sort_keys=False)
             parse_policy(text, filename)  # validate exactly as the gateway will
         except PolicyError as exc:
-            return self._json(request, {"error": "invalid_policy", "message": str(exc)},
-                              status=400)
+            return self._json(request, {"error": "invalid_policy", "message": str(exc)}, status=400)
 
         path = os.path.join(self.gw.config.policy_dir, filename)
         if os.path.exists(path):
@@ -225,8 +255,7 @@ class AdminApi:
         try:
             self.gw.reload_policies()
         except PolicyError as exc:
-            return self._json(request, {"error": "reload_failed", "message": str(exc)},
-                              status=500)
+            return self._json(request, {"error": "reload_failed", "message": str(exc)}, status=500)
         # Apply live: drop the user's open sessions so they reconnect under the
         # new policy (edits and revokes both take effect immediately).
         await self.gw.disconnect_user(key)

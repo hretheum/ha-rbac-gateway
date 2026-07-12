@@ -31,8 +31,10 @@ class Gateway:
         self.trip = TripSwitch(config.trip_file)
         self.identity = IdentityResolver(config.ha_ws_url, config.identity_cache_ttl)
         self.registry = RegistryCache(
-            config.ha_ws_url, config.ha_token,
-            config.registry_refresh_interval, config.registry_stale_max,
+            config.ha_ws_url,
+            config.ha_token,
+            config.registry_refresh_interval,
+            config.registry_stale_max,
         )
         self.policies = PolicyStore.load_dir(config.policy_dir)
         self.live_ws: set = set()  # open _Connection objects, for live revoke
@@ -66,8 +68,7 @@ class Gateway:
         """Force-close a user's open WebSocket sessions so a policy change or
         revoke takes effect immediately (the frontend reconnects and picks up
         the new policy, or is denied if revoked)."""
-        victims = [c for c in list(self.live_ws)
-                   if key in (c.identity.user_id, c.identity.name)]
+        victims = [c for c in list(self.live_ws) if key in (c.identity.user_id, c.identity.name)]
         for c in victims:
             await c.close_now()
         if victims:
@@ -109,9 +110,14 @@ class Gateway:
         await self._fetch_version()
         await self.registry.start()
         await self.canary.start()
-        log.info("gateway ready: upstream=%s ha_version=%s listen=%s:%s trip=%s",
-                 self.ha_url, self.ha_version, self.config.listen_host,
-                 self.config.listen_port, self.trip.path)
+        log.info(
+            "gateway ready: upstream=%s ha_version=%s listen=%s:%s trip=%s",
+            self.ha_url,
+            self.ha_version,
+            self.config.listen_host,
+            self.config.listen_port,
+            self.trip.path,
+        )
 
     async def on_cleanup(self, app: web.Application) -> None:
         await self.canary.stop()
@@ -124,11 +130,13 @@ class Gateway:
 
 async def _health(request: web.Request) -> web.Response:
     gw: Gateway = request.app[GATEWAY]
-    return web.json_response({
-        "status": "tripped" if gw.trip.is_tripped() else "ok",
-        "ha_version": gw.ha_version,
-        "registry_age_s": round(gw.registry.age(), 1),
-    })
+    return web.json_response(
+        {
+            "status": "tripped" if gw.trip.is_tripped() else "ok",
+            "ha_version": gw.ha_version,
+            "registry_age_s": round(gw.registry.age(), 1),
+        }
+    )
 
 
 def build_app(config: GatewayConfig) -> web.Application:

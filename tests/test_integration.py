@@ -33,8 +33,11 @@ async def test_rest_single_state_allowed_and_denied(gateway):
 
 async def test_rest_template_endpoint_denied(gateway):
     async with aiohttp.ClientSession() as s:
-        async with s.post(base(gateway) + "/api/template", headers=RESTRICTED,
-                          json={"template": "{{ states('sensor.secret') }}"}) as r:
+        async with s.post(
+            base(gateway) + "/api/template",
+            headers=RESTRICTED,
+            json={"template": "{{ states('sensor.secret') }}"},
+        ) as r:
             assert r.status == 403
             assert (await r.json())["error"] == "forbidden_by_gateway"
 
@@ -47,8 +50,11 @@ async def test_rest_error_log_denied(gateway):
 
 async def test_rest_service_call_allowed_target(gateway):
     async with aiohttp.ClientSession() as s:
-        async with s.post(base(gateway) + "/api/services/light/turn_on", headers=RESTRICTED,
-                          json={"entity_id": "light.kitchen"}) as r:
+        async with s.post(
+            base(gateway) + "/api/services/light/turn_on",
+            headers=RESTRICTED,
+            json={"entity_id": "light.kitchen"},
+        ) as r:
             assert r.status == 200
             # response (changed states) is itself filtered: secret must be gone
             ids = {e["entity_id"] for e in await r.json()}
@@ -57,15 +63,21 @@ async def test_rest_service_call_allowed_target(gateway):
 
 async def test_rest_service_call_forbidden_target(gateway):
     async with aiohttp.ClientSession() as s:
-        async with s.post(base(gateway) + "/api/services/light/turn_on", headers=RESTRICTED,
-                          json={"entity_id": "light.hidden"}) as r:
+        async with s.post(
+            base(gateway) + "/api/services/light/turn_on",
+            headers=RESTRICTED,
+            json={"entity_id": "light.hidden"},
+        ) as r:
             assert r.status == 403
 
 
 async def test_rest_service_call_return_response_denied(gateway):
     async with aiohttp.ClientSession() as s:
-        async with s.post(base(gateway) + "/api/services/light/turn_on?return_response",
-                          headers=RESTRICTED, json={"entity_id": "light.kitchen"}) as r:
+        async with s.post(
+            base(gateway) + "/api/services/light/turn_on?return_response",
+            headers=RESTRICTED,
+            json={"entity_id": "light.kitchen"},
+        ) as r:
             assert r.status == 403  # even an allowed target: response shape not filterable
 
 
@@ -124,6 +136,7 @@ async def test_healthz(gateway):
 
 
 # --- WebSocket ---------------------------------------------------------------
+
 
 async def _ws_auth(s, url, token):
     ws = await s.ws_connect(url)
@@ -188,8 +201,9 @@ async def test_ws_render_template_denied(gateway):
     url = base(gateway) + "/api/websocket"
     async with aiohttp.ClientSession() as s:
         ws, _ = await _ws_auth(s, url, "restricted")
-        await ws.send_json({"id": 6, "type": "render_template",
-                            "template": "{{ states('sensor.secret') }}"})
+        await ws.send_json(
+            {"id": 6, "type": "render_template", "template": "{{ states('sensor.secret') }}"}
+        )
         res = await _result(ws, 6)
         assert res["type"] == "result"
         assert res["success"] is False
@@ -231,8 +245,15 @@ async def test_ws_call_service_forbidden_denied(gateway):
     url = base(gateway) + "/api/websocket"
     async with aiohttp.ClientSession() as s:
         ws, _ = await _ws_auth(s, url, "restricted")
-        await ws.send_json({"id": 9, "type": "call_service", "domain": "light",
-                            "service": "turn_on", "target": {"entity_id": "light.hidden"}})
+        await ws.send_json(
+            {
+                "id": 9,
+                "type": "call_service",
+                "domain": "light",
+                "service": "turn_on",
+                "target": {"entity_id": "light.hidden"},
+            }
+        )
         res = await _result(ws, 9)
         assert res["success"] is False
         await ws.close()
@@ -330,8 +351,9 @@ async def test_ws_registry_updated_synthetic_accept(gateway):
     url = base(gateway) + "/api/websocket"
     async with aiohttp.ClientSession() as s:
         ws, _ = await _ws_auth(s, url, "restricted")
-        await ws.send_json({"id": 45, "type": "subscribe_events",
-                            "event_type": "entity_registry_updated"})
+        await ws.send_json(
+            {"id": 45, "type": "subscribe_events", "event_type": "entity_registry_updated"}
+        )
         res = await _result(ws, 45)
         assert res["success"] is True  # accepted so the frontend can boot
         await ws.close()

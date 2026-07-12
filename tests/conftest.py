@@ -94,8 +94,7 @@ async def _service(request):
         # HA changes the response shape to a dict when return_response is set;
         # the service_response can carry arbitrary data. The gateway must never
         # reach here for a restricted user.
-        return web.json_response(
-            {"changed_states": [], "service_response": {"secret": "LEAKED"}})
+        return web.json_response({"changed_states": [], "service_response": {"secret": "LEAKED"}})
     # HA returns the list of states that changed. Include a couple to prove the
     # gateway filters even the *response* of an allowed call.
     return web.json_response([STATES["light.kitchen"], STATES["sensor.secret"]])
@@ -157,20 +156,46 @@ async def _ws_command(ws, data, identity):
     elif mtype == "config/device_registry/list":
         await ws.send_json(ok(DEVICE_REGISTRY))
     elif mtype == "config/area_registry/list":
-        await ws.send_json(ok([{"area_id": "kitchen", "name": "Kitchen"},
-                               {"area_id": "vault", "name": "Vault"}]))
+        await ws.send_json(
+            ok([{"area_id": "kitchen", "name": "Kitchen"}, {"area_id": "vault", "name": "Vault"}])
+        )
     elif mtype == "config/auth/list":
-        await ws.send_json(ok([
-            {"id": "u1", "name": "Restricted", "group_ids": ["system-users"],
-             "system_generated": False, "is_owner": False},
-            {"id": "admin1", "name": "Admin", "group_ids": ["system-admin"],
-             "system_generated": False, "is_owner": True},
-            {"id": "sys", "name": "Supervisor", "group_ids": ["system-admin"],
-             "system_generated": True, "is_owner": False},
-        ]))
+        await ws.send_json(
+            ok(
+                [
+                    {
+                        "id": "u1",
+                        "name": "Restricted",
+                        "group_ids": ["system-users"],
+                        "system_generated": False,
+                        "is_owner": False,
+                    },
+                    {
+                        "id": "admin1",
+                        "name": "Admin",
+                        "group_ids": ["system-admin"],
+                        "system_generated": False,
+                        "is_owner": True,
+                    },
+                    {
+                        "id": "sys",
+                        "name": "Supervisor",
+                        "group_ids": ["system-admin"],
+                        "system_generated": True,
+                        "is_owner": False,
+                    },
+                ]
+            )
+        )
     elif mtype == "lovelace/dashboards/list":
-        await ws.send_json(ok([{"url_path": "guest-home", "title": "Guest"},
-                               {"url_path": "dashboard-secret", "title": "Secret"}]))
+        await ws.send_json(
+            ok(
+                [
+                    {"url_path": "guest-home", "title": "Guest"},
+                    {"url_path": "dashboard-secret", "title": "Secret"},
+                ]
+            )
+        )
     elif mtype == "config/floor_registry/list":
         await ws.send_json(ok([{"floor_id": "ground", "name": "Ground"}]))
     elif mtype == "subscribe_entities":
@@ -183,21 +208,38 @@ async def _ws_command(ws, data, identity):
     elif mtype == "lovelace/config":
         await ws.send_json(ok({"title": data.get("url_path") or "default", "views": []}))
     elif mtype == "get_panels":
-        await ws.send_json(ok({
-            "guest-home": {"component_name": "lovelace", "url_path": "guest-home",
-                           "title": "Guest", "show_in_sidebar": True},
-            "dashboard-secret": {"component_name": "lovelace", "url_path": "dashboard-secret",
-                                 "show_in_sidebar": True},
-            "config": {"component_name": "config", "url_path": "config"},
-            "profile": {"component_name": "profile", "url_path": "profile"},
-        }))
+        await ws.send_json(
+            ok(
+                {
+                    "guest-home": {
+                        "component_name": "lovelace",
+                        "url_path": "guest-home",
+                        "title": "Guest",
+                        "show_in_sidebar": True,
+                    },
+                    "dashboard-secret": {
+                        "component_name": "lovelace",
+                        "url_path": "dashboard-secret",
+                        "show_in_sidebar": True,
+                    },
+                    "config": {"component_name": "config", "url_path": "config"},
+                    "profile": {"component_name": "profile", "url_path": "profile"},
+                }
+            )
+        )
     elif mtype == "render_template":
         # If the gateway ever forwards this, it leaks. Emit a fake event.
         await ws.send_json(ok(None))
         await ws.send_json({"id": mid, "type": "event", "event": {"result": "LEAKED"}})
     else:
-        await ws.send_json({"id": mid, "type": "result", "success": False,
-                            "error": {"code": "unknown_command", "message": "Unknown command."}})
+        await ws.send_json(
+            {
+                "id": mid,
+                "type": "result",
+                "success": False,
+                "error": {"code": "unknown_command", "message": "Unknown command."},
+            }
+        )
 
 
 def make_fake_ha_app() -> web.Application:

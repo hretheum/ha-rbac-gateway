@@ -155,8 +155,7 @@ def filter_entity_registry(entries: list, allowed_entities: set) -> list:
     """Keep only entity-registry entries for entities the user may read."""
     if not isinstance(entries, list):
         return []
-    return [e for e in entries
-            if isinstance(e, dict) and _entry_entity_id(e) in allowed_entities]
+    return [e for e in entries if isinstance(e, dict) and _entry_entity_id(e) in allowed_entities]
 
 
 def filter_entity_registry_display(result: dict, allowed_entities: set) -> dict:
@@ -188,8 +187,12 @@ DEFAULT_PANEL_KEY = "lovelace"
 _ESSENTIAL_COMPONENTS = ("profile", "notfound", "my")
 
 
-def filter_panels(panels: dict, allowed_dashboards: set, default_dashboard: str | None,
-                  keep_components: tuple = _ESSENTIAL_COMPONENTS) -> dict:
+def filter_panels(
+    panels: dict,
+    allowed_dashboards: set,
+    default_dashboard: str | None,
+    keep_components: tuple = _ESSENTIAL_COMPONENTS,
+) -> dict:
     """Keep only the user's dashboards (plus a few essential built-ins like the
     profile page), so the sidebar shows nothing the user can't open.
 
@@ -203,8 +206,10 @@ def filter_panels(panels: dict, allowed_dashboards: set, default_dashboard: str 
     for key, panel in panels.items():
         if not isinstance(panel, dict):
             continue
-        if panel.get("url_path") in allowed_dashboards \
-                or panel.get("component_name") in keep_components:
+        if (
+            panel.get("url_path") in allowed_dashboards
+            or panel.get("component_name") in keep_components
+        ):
             kept[key] = panel
     if DEFAULT_PANEL_KEY not in kept and default_dashboard and default_dashboard in panels:
         alias = dict(panels[default_dashboard])

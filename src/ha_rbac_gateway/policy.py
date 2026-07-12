@@ -64,6 +64,7 @@ class UserPolicy:
 
     def to_editor_dict(self) -> dict:
         """Serialize back to the editable shape the admin UI uses."""
+
         def merged(kind: str) -> list[dict]:
             read = getattr(self.read, kind)
             control = getattr(self.control, kind)
@@ -115,8 +116,9 @@ def _parse_rules(items: object, kind: str, where: str) -> list[tuple[str, str]]:
         if kind == "entities" and "." not in ident:
             raise PolicyError(f"{w}: entity id {ident!r} must look like 'domain.object_id'")
         if kind == "domains" and "." in ident:
-            raise PolicyError(f"{w}: domain {ident!r} must not contain '.' "
-                              f"(did you mean an entity rule?)")
+            raise PolicyError(
+                f"{w}: domain {ident!r} must not contain '.' (did you mean an entity rule?)"
+            )
         access = node.get("access", READ)
         if access not in _ACCESS_LEVELS:
             raise PolicyError(f"{w}: access must be one of {_ACCESS_LEVELS}, got {access!r}")
@@ -140,8 +142,10 @@ def parse_policy(text: str, source_file: str) -> UserPolicy:
     if uname is not None and not isinstance(uname, str):
         raise PolicyError(f"{source_file}: user.name must be a string")
     if bool(uid) == bool(uname):
-        raise PolicyError(f"{source_file}: user must set exactly one of 'id' or 'name' "
-                          f"(prefer 'id'; find it in the gateway log after a first attempt)")
+        raise PolicyError(
+            f"{source_file}: user must set exactly one of 'id' or 'name' "
+            f"(prefer 'id'; find it in the gateway log after a first attempt)"
+        )
 
     allow = _require_mapping(root.get("allow", {}), f"{source_file}: allow")
     _check_keys(allow, {"entities", "areas", "domains"}, f"{source_file}: allow")
@@ -211,8 +215,11 @@ class PolicyStore:
         by_id = [p for p in self._policies if p.match_user_id == identity.user_id]
         if by_id:
             return by_id[0]
-        by_name = [p for p in self._policies if
-                   p.match_user_id is None and p.match_user_name == identity.name]
+        by_name = [
+            p
+            for p in self._policies
+            if p.match_user_id is None and p.match_user_name == identity.name
+        ]
         return by_name[0] if by_name else None
 
     def all_dashboards(self) -> frozenset[str]:

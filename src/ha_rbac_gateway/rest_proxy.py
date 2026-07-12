@@ -20,15 +20,29 @@ from .filters import redact_home_location, service_call_allowed
 log = logging.getLogger(__name__)
 
 _HOP_BY_HOP = {
-    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-    "te", "trailers", "transfer-encoding", "upgrade", "content-length",
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailers",
+    "transfer-encoding",
+    "upgrade",
+    "content-length",
     "content-encoding",
 }
 # For transparent passthrough we relay the body byte-for-byte, so we KEEP
 # Content-Encoding (the client decodes it) and only drop framing headers.
 _RAW_STRIP = {
-    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-    "te", "trailers", "transfer-encoding", "upgrade", "content-length",
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailers",
+    "transfer-encoding",
+    "upgrade",
+    "content-length",
 }
 
 
@@ -104,7 +118,7 @@ class RestProxy:
         return web.json_response(body, status=status, headers=_clean(headers))
 
     async def _state_single(self, request, evaluator, identity) -> web.StreamResponse:
-        entity_id = request.path[len("/api/states/"):]
+        entity_id = request.path[len("/api/states/") :]
         if not evaluator.allowed_read(entity_id):
             return self._deny(identity, request, f"read not permitted for {entity_id}")
         audit.allow(identity, "rest", "GET", f"/api/states/{entity_id}")
@@ -120,7 +134,7 @@ class RestProxy:
     async def _call_service(self, request, evaluator, identity) -> web.StreamResponse:
         if "return_response" in request.query:
             return self._deny(identity, request, "return_response not filterable (v1)")
-        parts = request.path[len("/api/services/"):].split("/")
+        parts = request.path[len("/api/services/") :].split("/")
         if len(parts) != 2 or not all(parts):
             return self._deny(identity, request, "malformed service path")
         domain, service = parts
@@ -139,7 +153,12 @@ class RestProxy:
             return None
 
         ok, reason = service_call_allowed(
-            evaluator, domain, service, body, body.get("target"), resolve,
+            evaluator,
+            domain,
+            service,
+            body,
+            body.get("target"),
+            resolve,
         )
         if not ok:
             return self._deny(identity, request, f"{domain}.{service}: {reason}")
@@ -158,7 +177,10 @@ class RestProxy:
         # Raw session: no auto-decompress, so a brotli/gzip body is relayed as-is
         # with its Content-Encoding header and the browser decodes it.
         async with self.gw.http_raw.request(
-            request.method, url, headers=_fwd_headers(request), data=body or None,
+            request.method,
+            url,
+            headers=_fwd_headers(request),
+            data=body or None,
             allow_redirects=False,
         ) as up:
             raw = await up.read()
@@ -191,7 +213,8 @@ class RestProxy:
     def _deny(self, identity, request, reason: str, status: int = 403) -> web.StreamResponse:
         audit.deny(identity, "rest", f"{request.method} {request.path}", reason)
         return web.json_response(
-            {"error": "forbidden_by_gateway", "message": reason}, status=status)
+            {"error": "forbidden_by_gateway", "message": reason}, status=status
+        )
 
 
 def _clean(headers: dict) -> dict:

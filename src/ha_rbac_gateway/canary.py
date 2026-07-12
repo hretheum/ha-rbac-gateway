@@ -61,19 +61,18 @@ async def run_canary(
         # 1. allowed entity readable via REST
         if allowed_entity:
             async with s.get(f"{gateway_base}/api/states/{allowed_entity}") as resp:
-                r.record("read allowed entity (REST)", resp.status == 200,
-                         f"status={resp.status}")
+                r.record("read allowed entity (REST)", resp.status == 200, f"status={resp.status}")
 
         # 2. forbidden entity denied via REST
         async with s.get(f"{gateway_base}/api/states/{forbidden_entity}") as resp:
-            r.record("forbidden entity denied (REST)", resp.status == 403,
-                     f"status={resp.status}")
+            r.record("forbidden entity denied (REST)", resp.status == 403, f"status={resp.status}")
 
         # 3. template endpoint denied (state-exfiltration vector)
-        async with s.post(f"{gateway_base}/api/template",
-                          json={"template": "{{ states('" + forbidden_entity + "') }}"}) as resp:
-            r.record("template endpoint denied (REST)", resp.status == 403,
-                     f"status={resp.status}")
+        async with s.post(
+            f"{gateway_base}/api/template",
+            json={"template": "{{ states('" + forbidden_entity + "') }}"},
+        ) as resp:
+            r.record("template endpoint denied (REST)", resp.status == 403, f"status={resp.status}")
 
         # 4. WS: get_states must not include the forbidden entity; render_template denied
         await _ws_checks(s, gateway_base, token, forbidden_entity, r)
@@ -93,18 +92,31 @@ async def _ws_checks(session, gateway_base, token, forbidden_entity, r: CanaryRe
             await ws.send_json({"id": 1, "type": "get_states"})
             states = await _await_result(ws, 1)
             visible = {s.get("entity_id") for s in (states.get("result") or [])}
-            r.record("forbidden entity absent from ws get_states",
-                     forbidden_entity not in visible,
-                     f"{len(visible)} visible")
-            await ws.send_json({"id": 2, "type": "render_template",
-                                "template": "{{ states('" + forbidden_entity + "') }}"})
+            r.record(
+                "forbidden entity absent from ws get_states",
+                forbidden_entity not in visible,
+                f"{len(visible)} visible",
+            )
+            await ws.send_json(
+                {
+                    "id": 2,
+                    "type": "render_template",
+                    "template": "{{ states('" + forbidden_entity + "') }}",
+                }
+            )
             rt = await _await_result(ws, 2)
-            r.record("ws render_template denied", rt.get("success") is False,
-                     f"error={rt.get('error', {}).get('code')}")
+            r.record(
+                "ws render_template denied",
+                rt.get("success") is False,
+                f"error={rt.get('error', {}).get('code')}",
+            )
             await ws.send_json({"id": 3, "type": "totally/unknown_gateway_probe"})
             uk = await _await_result(ws, 3)
-            r.record("ws unknown command denied", uk.get("success") is False,
-                     f"error={uk.get('error', {}).get('code')}")
+            r.record(
+                "ws unknown command denied",
+                uk.get("success") is False,
+                f"error={uk.get('error', {}).get('code')}",
+            )
     except Exception as exc:
         r.record("ws checks", False, f"exception: {exc}")
 
@@ -144,9 +156,12 @@ class CanaryRunner:
         await asyncio.sleep(10)  # let the listener settle
         while True:
             try:
-                result = await run_canary(base, cfg.canary_token,
-                                          cfg.canary_allowed_read_entity,
-                                          cfg.canary_forbidden_entity)
+                result = await run_canary(
+                    base,
+                    cfg.canary_token,
+                    cfg.canary_allowed_read_entity,
+                    cfg.canary_forbidden_entity,
+                )
                 if result.ok:
                     log.info("canary OK\n%s", result.report())
                 else:
@@ -158,6 +173,7 @@ class CanaryRunner:
 
 async def _main() -> int:
     import os
+
     base = os.environ.get("GATEWAY_BASE", "http://127.0.0.1:8124")
     token = os.environ.get("CANARY_TOKEN", "")
     allowed = os.environ.get("CANARY_ALLOWED_READ_ENTITY", "")
@@ -166,9 +182,15 @@ async def _main() -> int:
         print("CANARY_TOKEN required", file=sys.stderr)
         return 2
     result = await run_canary(base, token, allowed, forbidden)
-    print(json.dumps({"ok": result.ok,
-                      "checks": [{"name": n, "ok": o, "detail": d} for n, o, d in result.checks]},
-                     indent=2))
+    print(
+        json.dumps(
+            {
+                "ok": result.ok,
+                "checks": [{"name": n, "ok": o, "detail": d} for n, o, d in result.checks],
+            },
+            indent=2,
+        )
+    )
     return 0 if result.ok else 1
 
 

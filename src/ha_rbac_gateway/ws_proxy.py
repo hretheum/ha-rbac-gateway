@@ -43,8 +43,12 @@ log = logging.getLogger(__name__)
 
 
 def _err(mid, code: str, message: str) -> dict:
-    return {"id": mid, "type": "result", "success": False,
-            "error": {"code": code, "message": message}}
+    return {
+        "id": mid,
+        "type": "result",
+        "success": False,
+        "error": {"code": code, "message": message},
+    }
 
 
 class _Sub:
@@ -83,8 +87,9 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
     passthrough = identity.is_admin or identity.is_owner
     if evaluator is None and not passthrough:
         audit.deny(identity, "ws", "auth", "no policy for user (fail closed)")
-        await client.send_json({"type": "auth_invalid",
-                                "message": "no gateway policy assigned to this user"})
+        await client.send_json(
+            {"type": "auth_invalid", "message": "no gateway policy assigned to this user"}
+        )
         await client.close()
         return client
 
@@ -144,17 +149,23 @@ async def _auth_upstream(upstream: aiohttp.ClientWebSocketResponse, token: str) 
 
 
 class _Connection:
-    def __init__(self, gw, identity: Identity, evaluator: PolicyEvaluator | None,
-                 passthrough: bool, client: web.WebSocketResponse,
-                 upstream: aiohttp.ClientWebSocketResponse):
+    def __init__(
+        self,
+        gw,
+        identity: Identity,
+        evaluator: PolicyEvaluator | None,
+        passthrough: bool,
+        client: web.WebSocketResponse,
+        upstream: aiohttp.ClientWebSocketResponse,
+    ):
         self.gw = gw
         self.identity = identity
         self.ev = evaluator
         self.passthrough = passthrough
         self.client = client
         self.upstream = upstream
-        self.pending: dict[int, str] = {}   # request id -> result transform kind
-        self.subs: dict[int, _Sub] = {}      # subscription id -> _Sub
+        self.pending: dict[int, str] = {}  # request id -> result transform kind
+        self.subs: dict[int, _Sub] = {}  # subscription id -> _Sub
 
     async def close_now(self) -> None:
         """Force this session shut (used for live policy revoke). Safe to call
@@ -191,7 +202,7 @@ class _Connection:
                     await self.upstream.send_json(data)
                     continue
                 # HA supports coalescing several messages into one JSON array frame.
-                for m in (data if isinstance(data, list) else [data]):
+                for m in data if isinstance(data, list) else [data]:
                     if isinstance(m, dict):
                         await self._route_client_msg(m)
         finally:
@@ -243,11 +254,18 @@ class _Connection:
         elif mtype in (commands.WS_REG_FLOOR_LIST, commands.WS_REG_LABEL_LIST):
             # Floors/labels are not scoped per-entity; return an empty registry
             # rather than leak names. The frontend degrades gracefully.
-            await self.client.send_json({"id": mid, "type": "result",
-                                         "success": True, "result": []})
+            await self.client.send_json(
+                {"id": mid, "type": "result", "success": True, "result": []}
+            )
         elif mtype in commands.WS_SOFT_EMPTY:
-            await self.client.send_json({"id": mid, "type": "result", "success": True,
-                                         "result": commands.WS_SOFT_EMPTY[mtype]})
+            await self.client.send_json(
+                {
+                    "id": mid,
+                    "type": "result",
+                    "success": True,
+                    "result": commands.WS_SOFT_EMPTY[mtype],
+                }
+            )
         else:
             # Includes WS_EXPLICIT_DENY and anything unknown. Default deny.
             await self._deny(mid, mtype, "command not in gateway allowlist")
@@ -263,7 +281,8 @@ class _Connection:
             # Nothing visible: answer success and an empty initial add frame.
             self.subs[mid] = _Sub("entities")
             await self.client.send_json(
-                {"id": mid, "type": "result", "success": True, "result": None})
+                {"id": mid, "type": "result", "success": True, "result": None}
+            )
             await self.client.send_json({"id": mid, "type": "event", "event": {"a": {}}})
             audit.allow(self.identity, "ws", "subscribe_entities", "empty (nothing visible)")
             return
@@ -287,11 +306,15 @@ class _Connection:
             # Accept so the frontend's subscription resolves, but relay nothing:
             # these registry-change events can carry ids the user may not see.
             audit.allow(self.identity, "ws", "subscribe_events", f"{event_type} (synthetic)")
-            await self.client.send_json({"id": mid, "type": "result",
-                                         "success": True, "result": None})
+            await self.client.send_json(
+                {"id": mid, "type": "result", "success": True, "result": None}
+            )
         else:
-            await self._deny(mid, "subscribe_events",
-                             f"event_type {event_type!r} not allowed (use state_changed)")
+            await self._deny(
+                mid,
+                "subscribe_events",
+                f"event_type {event_type!r} not allowed (use state_changed)",
+            )
 
     async def _handle_call_service(self, mid: int, data: dict) -> None:
         if data.get("return_response"):
@@ -305,7 +328,8 @@ class _Connection:
         if f"{domain}.{service}" in commands.SILENT_OK_SERVICES:
             # Acknowledge but drop — never forwarded to HA (see commands.py).
             await self.client.send_json(
-                {"id": mid, "type": "result", "success": True, "result": {"context": {}}})
+                {"id": mid, "type": "result", "success": True, "result": {"context": {}}}
+            )
             return
 
         def resolve(kind: str, value: str):
@@ -316,8 +340,12 @@ class _Connection:
             return None
 
         ok, reason = service_call_allowed(
-            self.ev, domain, service,
-            data.get("service_data"), data.get("target"), resolve,
+            self.ev,
+            domain,
+            service,
+            data.get("service_data"),
+            data.get("target"),
+            resolve,
         )
         if not ok:
             await self._deny(mid, f"call_service:{domain}.{service}", reason)
@@ -366,7 +394,7 @@ class _Connection:
                     await self.client.send_json(data)
                     continue
                 # A frame may be a single message or a coalesced array of them.
-                for m in (data if isinstance(data, list) else [data]):
+                for m in data if isinstance(data, list) else [data]:
                     if isinstance(m, dict):
                         await self._route_ha_msg(m)
                     else:
@@ -398,9 +426,15 @@ class _Connection:
         elif kind == "redact_config":
             data["result"] = redact_home_location(result) if isinstance(result, dict) else {}
         elif kind == "filter_panels":
-            data["result"] = filter_panels(
-                result, self.ev.policy.dashboards, self.ev.policy.default_dashboard,
-            ) if isinstance(result, dict) else {}
+            data["result"] = (
+                filter_panels(
+                    result,
+                    self.ev.policy.dashboards,
+                    self.ev.policy.default_dashboard,
+                )
+                if isinstance(result, dict)
+                else {}
+            )
         elif kind == "filter_entity_reg":
             data["result"] = filter_entity_registry(result, self._allowed_entities())
         elif kind == "filter_entity_display":

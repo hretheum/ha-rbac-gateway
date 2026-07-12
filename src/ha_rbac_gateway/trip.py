@@ -38,5 +38,6 @@ class TripSwitch:
         with open(self._path, "a", encoding="utf-8") as f:
             f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S%z')} {reason}\n")
         self._last_check = 0.0  # force re-read on next check
-        log.critical("GATEWAY TRIPPED (fail closed): %s — remove %s after manual review",
-                     reason, self._path)
+        log.critical(
+            "GATEWAY TRIPPED (fail closed): %s — remove %s after manual review", reason, self._path
+        )

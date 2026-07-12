@@ -53,8 +53,7 @@ class RegistryCache:
             try:
                 await self.refresh()
             except Exception as exc:  # keep serving the old snapshot, narrowing over time
-                log.warning("registry refresh failed (snapshot age %.0fs): %s",
-                            self.age(), exc)
+                log.warning("registry refresh failed (snapshot age %.0fs): %s", self.age(), exc)
 
     # -- fetching ------------------------------------------------------------
 
@@ -68,7 +67,8 @@ class RegistryCache:
                 msg = await ws.receive_json()
                 if msg.get("type") != "auth_ok":
                     raise RegistryError(
-                        "backend token rejected by HA (auth_invalid) — check HA_TOKEN")
+                        "backend token rejected by HA (auth_invalid) — check HA_TOKEN"
+                    )
 
                 async def cmd(mid: int, mtype: str) -> list:
                     await ws.send_json({"id": mid, "type": mtype})
@@ -95,8 +95,11 @@ class RegistryCache:
         self._entity_area = mapping
         self._entity_device = dev_map
         self._fetched_at = time.monotonic()
-        log.info("registry snapshot: %d entities (%d with area)",
-                 len(mapping), sum(1 for a in mapping.values() if a))
+        log.info(
+            "registry snapshot: %d entities (%d with area)",
+            len(mapping),
+            sum(1 for a in mapping.values() if a),
+        )
 
     # -- queries (fail closed on staleness) -----------------------------------
 

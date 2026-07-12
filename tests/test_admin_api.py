@@ -38,8 +38,10 @@ async def test_context_requires_admin(gateway):
 
 async def test_preflight_cors(gateway):
     async with aiohttp.ClientSession() as s:
-        async with s.options(base(gateway) + "/rbac-admin/api/policies/u1",
-                             headers={"Origin": "http://ha.local:8123"}) as r:
+        async with s.options(
+            base(gateway) + "/rbac-admin/api/policies/u1",
+            headers={"Origin": "http://ha.local:8123"},
+        ) as r:
             assert r.status == 204
             assert r.headers["Access-Control-Allow-Origin"] == "http://ha.local:8123"
             assert "Authorization" in r.headers["Access-Control-Allow-Headers"]
@@ -69,12 +71,14 @@ async def test_put_policy_updates_live(gateway):
     new_policy = {
         "user": {"id": "u1"},
         "entities": [{"id": "sensor.secret", "access": "read"}],
-        "areas": [], "domains": [],
+        "areas": [],
+        "domains": [],
         "dashboards": {"default": "guest-home", "allowed": ["guest-home"]},
     }
     async with aiohttp.ClientSession() as s:
-        async with s.put(base(gateway) + "/rbac-admin/api/policies/u1",
-                         headers=ADMIN, json=new_policy) as r:
+        async with s.put(
+            base(gateway) + "/rbac-admin/api/policies/u1", headers=ADMIN, json=new_policy
+        ) as r:
             assert r.status == 200
             assert (await r.json())["ok"] is True
 
@@ -85,20 +89,28 @@ async def test_put_policy_updates_live(gateway):
 
 
 async def test_put_invalid_policy_rejected(gateway):
-    bad = {"user": {"id": "u1"},
-           "entities": [{"id": "notanentity", "access": "read"}],  # missing domain.object
-           "areas": [], "domains": [], "dashboards": {}}
+    bad = {
+        "user": {"id": "u1"},
+        "entities": [{"id": "notanentity", "access": "read"}],  # missing domain.object
+        "areas": [],
+        "domains": [],
+        "dashboards": {},
+    }
     async with aiohttp.ClientSession() as s:
-        async with s.put(base(gateway) + "/rbac-admin/api/policies/u1",
-                         headers=ADMIN, json=bad) as r:
+        async with s.put(
+            base(gateway) + "/rbac-admin/api/policies/u1", headers=ADMIN, json=bad
+        ) as r:
             assert r.status == 400
             assert (await r.json())["error"] == "invalid_policy"
 
 
 async def test_put_requires_admin(gateway):
     async with aiohttp.ClientSession() as s:
-        async with s.put(base(gateway) + "/rbac-admin/api/policies/u1",
-                         headers=RESTRICTED, json={"user": {"id": "u1"}}) as r:
+        async with s.put(
+            base(gateway) + "/rbac-admin/api/policies/u1",
+            headers=RESTRICTED,
+            json={"user": {"id": "u1"}},
+        ) as r:
             assert r.status == 403
 
 
@@ -119,8 +131,9 @@ async def test_revoke_closes_live_ws_session(gateway):
                 break
 
         async with aiohttp.ClientSession() as a:
-            async with a.delete(base(gateway) + "/rbac-admin/api/policies/u1",
-                                headers=ADMIN) as resp:
+            async with a.delete(
+                base(gateway) + "/rbac-admin/api/policies/u1", headers=ADMIN
+            ) as resp:
                 assert resp.status == 200
 
         # the server should close the live socket promptly
@@ -130,8 +143,11 @@ async def test_revoke_closes_live_ws_session(gateway):
                 msg = await asyncio.wait_for(ws.receive(), timeout=1.0)
             except TimeoutError:
                 break
-            if msg.type in (aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSING,
-                            aiohttp.WSMsgType.CLOSED):
+            if msg.type in (
+                aiohttp.WSMsgType.CLOSE,
+                aiohttp.WSMsgType.CLOSING,
+                aiohttp.WSMsgType.CLOSED,
+            ):
                 closed = True
                 break
         assert closed
