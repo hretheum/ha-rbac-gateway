@@ -1,0 +1,45 @@
+src/ha_rbac_gateway/admin_api.py
+  s_dd42119c482bc7::t_b8f4a1f9759cb5 49,118-120,139-147,153-175,184-196,202-207,218-227,245,258
+src/ha_rbac_gateway/canary.py
+  s_dd42119c482bc7::t_d0ef503575320b 64,68,71-75,95-106,108-112,115-119,159-164,176,185-193
+src/ha_rbac_gateway/commands.py
+  s_dd42119c482bc7::t_f27fb406573ecb 15-33,46-50,53-54,56-59,72-89,95-108,112-119,124-148,155-160,191-192
+src/ha_rbac_gateway/filters.py
+  s_dd42119c482bc7::t_c9e096b1173ed5 158,190-195,209-212
+src/ha_rbac_gateway/policy.py
+  s_dd42119c482bc7::t_dbb3042a194ea8 67,119-121,145-148,218-222
+src/ha_rbac_gateway/registry.py
+  s_dd42119c482bc7::t_9b0a67036c882c 56,70-71,98-102
+src/ha_rbac_gateway/rest_proxy.py
+  s_dd42119c482bc7::t_8293e82bbb3e66 23-31,37-45,121,137,156-161,180-183,216-217
+src/ha_rbac_gateway/server.py
+  s_dd42119c482bc7::t_bb60a48b63f3a7 34-37,71,113-120,133-139
+src/ha_rbac_gateway/trip.py
+  s_dd42119c482bc7::t_0d33087385ea64 41-43
+src/ha_rbac_gateway/ws_proxy.py
+  s_dd42119c482bc7::t_16bedbcbf78ab1 46-51,90-92,152-160,167-168,205,257-259,261-268,284-285,309-311,313-317,331-332,343-348,397,429-437
+tests/conftest.py
+  s_dd42119c482bc7::t_099d22ca54920b 97,159-161,163-189,191-198,211-229,235-242
+tests/test_admin_api.py
+  s_dd42119c482bc7::t_d694500728566d 41-44,74-75,79-81,92-98,100-102,109-113,134-136,146-150
+tests/test_filters.py
+  s_dd42119c482bc7::t_26c94e9b3ad9df 27-28,46-48,54-56,74,80-82,90-92,110-116
+tests/test_integration.py
+  s_dd42119c482bc7::t_d14e9bcf344d99 36-40,53-57,66-70,76-80,140,204-206,248-256,354-356
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "6900b73855cf8fef087100edeea0ec2c23610b29",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
