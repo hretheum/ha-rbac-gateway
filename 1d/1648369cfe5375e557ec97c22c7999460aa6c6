@@ -1,0 +1,35 @@
+examples/policies/example-domain-and-mixed.yaml
+  s_dd42119c482bc7::t_66b17a2186c612 1-20
+examples/policies/README.md
+  s_dd42119c482bc7::t_399fb3f5913806 4-13
+README.md
+  s_dd42119c482bc7::t_dfd647acc6b141 50-55,60,62-65
+  s_dd42119c482bc7::t_f3044042d8e62d 207-228
+  s_dd42119c482bc7::t_2d94d3a84a8ca8 84-86
+  s_dd42119c482bc7::t_cff7b6cf15bf95 188-193
+  s_dd42119c482bc7::t_4cc0b23ba2e417 3-6,12-14
+  s_dd42119c482bc7::t_ddea47cb511c6a 23-24
+  s_dd42119c482bc7::t_a8c1e94252008f 15
+docs/troubleshooting.md
+  s_dd42119c482bc7::t_faaed6f512c580 1-70
+docs/architecture.md
+  s_dd42119c482bc7::t_8d337c7ed76b77 141-158
+examples/policies/example-area.yaml
+  s_dd42119c482bc7::t_0f961e9988a952 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "1d1648369cfe5375e557ec97c22c7999460aa6c6",
+  "prompts": {},
+  "sessions": {
+    "s_dd42119c482bc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0eb33d7f-0825-4023-851c-2c147b14210a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "<eryk@talentcanvas.tech>"
+    }
+  }
+}
