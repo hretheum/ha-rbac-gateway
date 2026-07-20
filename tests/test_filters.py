@@ -1,5 +1,6 @@
 from ha_rbac_gateway.filters import (
     filter_compressed_entities_event,
+    filter_lovelace_dashboards,
     redact_home_location,
     resolve_service_targets,
     service_call_allowed,
@@ -104,6 +105,28 @@ def test_compressed_event_all_forbidden_returns_none():
     allowed = {"light.kitchen"}.__contains__
     event = {"c": {"sensor.secret": {"s": "x"}}}
     assert filter_compressed_entities_event(event, allowed) is None
+
+
+def test_lovelace_dashboards_keeps_only_allowed():
+    dashboards = [
+        {"url_path": "dashboard-olafa", "title": "dashboard olafa"},
+        {"url_path": "dashboard-sdres", "title": "home"},
+        {"url_path": "dashboard-iwa", "title": "dashboard iwa"},
+    ]
+    kept = filter_lovelace_dashboards(dashboards, {"dashboard-olafa"})
+    assert kept == [{"url_path": "dashboard-olafa", "title": "dashboard olafa"}]
+
+
+def test_lovelace_dashboards_fails_closed_on_bad_shape():
+    assert filter_lovelace_dashboards(None, {"dashboard-olafa"}) == []
+    assert filter_lovelace_dashboards({"not": "a list"}, {"dashboard-olafa"}) == []
+    # entries that aren't dicts are dropped, not crashed on
+    assert filter_lovelace_dashboards(["x", 1, {"url_path": "y"}], {"y"}) == [{"url_path": "y"}]
+
+
+def test_lovelace_dashboards_empty_allowed_returns_nothing():
+    dashboards = [{"url_path": "dashboard-sdres", "title": "home"}]
+    assert filter_lovelace_dashboards(dashboards, set()) == []
 
 
 def test_redact_home_location_zeroes_gps_keeps_rest():

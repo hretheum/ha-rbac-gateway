@@ -6,6 +6,27 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-20
+
+### Fixed
+- Restricted users now LAND on their own default dashboard instead of an
+  access-denied page when the instance has a custom global default panel.
+  frontend/subscribe_system_data (key core) is intercepted and its
+  default_panel rewritten to the user policy dashboards.default (else the
+  built-in lovelace, which get_panels aliases). Admins/owners pass through
+  unchanged (keep the instance-wide default).
+
+## [0.2.0] - 2026-07-20
+
+### Fixed
+- Frontend compatibility with newer HA (2026.7.x): the WS allowlist now handles
+  lovelace/dashboards/list (result filtered to the user allowed dashboards,
+  fail-closed) so a restricted user default dashboard resolves instead of an
+  access-denied landing. Added frontend/get_icons, lovelace/info,
+  unsubscribe_events to plain-forward and persistent_notification/subscribe,
+  labs/subscribe to a new silent-ack set (subscription resolves, payload never
+  relayed). No entity/dashboard content leaks; filtered like get_panels.
+
 ## [0.1.0] - 2026-07-12
 
 First public release.
