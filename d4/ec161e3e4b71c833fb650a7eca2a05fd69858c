@@ -1,0 +1,37 @@
+.github/workflows/ci.yml
+  s_af0e8d445a0a59::t_c6afd706bc39c6 25-26,42-43,55-56,70,85-88,93,101
+CHANGELOG.md
+  s_af0e8d445a0a59::t_fbc4c0ee2a50f6 9-29
+README.md
+  s_af0e8d445a0a59::t_3e433bde872bf8 60-63,65,84-86
+docs/oss-release-readiness.md
+  s_af0e8d445a0a59::t_2276b38c47dd8d 3-6,8-11,15-27,30-37,40-48,51-59,63-81,85-93,98-100,104-106
+docs/troubleshooting.md
+  s_af0e8d445a0a59::t_68fe1384ed190f 8-10,12
+src/ha_rbac_gateway/__init__.py
+  s_af0e8d445a0a59::t_eacc69d59b035b 3
+src/ha_rbac_gateway/commands.py
+  s_af0e8d445a0a59::t_ffd8752edc2fbc 29,32-33,54-65,75-81,103-104
+src/ha_rbac_gateway/filters.py
+  s_af0e8d445a0a59::t_aa85dce2d66b2c 177-195
+src/ha_rbac_gateway/ws_proxy.py
+  s_af0e8d445a0a59::t_339c5189b06e8a 30,35,247-251,279-286,337-347,467-472,500-508
+tests/test_filters.py
+  s_af0e8d445a0a59::t_7aee7bd777518d 3,110-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "d4ec161e3e4b71c833fb650a7eca2a05fd69858c",
+  "prompts": {},
+  "sessions": {
+    "s_af0e8d445a0a59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46832159-e10a-4072-bbe0-7b856432d754",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Eryk Orłowski <eryk@talentcanvas.tech>"
+    }
+  }
+}
