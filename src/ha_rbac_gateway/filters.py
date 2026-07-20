@@ -174,6 +174,25 @@ def filter_by_key(entries: list, key: str, allowed_ids: set) -> list:
     return [e for e in entries if isinstance(e, dict) and e.get(key) in allowed_ids]
 
 
+def filter_lovelace_dashboards(dashboards: list, allowed_dashboards: set) -> list:
+    """Keep only the lovelace dashboards the user may open, by `url_path`.
+
+    `lovelace/dashboards/list` returns every storage-mode dashboard on the
+    instance; forwarding it verbatim would reveal the existence (and titles) of
+    dashboards the user has no access to. The built-in 'Overview' (url_path
+    'lovelace') is not part of this list — it is the implicit default and is
+    aliased into the panel list by `filter_panels`. Fails closed to [] on a bad
+    shape.
+    """
+    if not isinstance(dashboards, list):
+        return []
+    return [
+        d
+        for d in dashboards
+        if isinstance(d, dict) and d.get("url_path") in allowed_dashboards
+    ]
+
+
 # HA's frontend router falls back to a panel named this when the browser has no
 # stored default. We must keep or synthesize it or navigation breaks.
 DEFAULT_PANEL_KEY = "lovelace"

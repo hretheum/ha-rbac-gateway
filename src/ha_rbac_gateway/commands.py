@@ -26,9 +26,11 @@ WS_FORWARD_PLAIN: frozenset[str] = frozenset(
         "frontend/set_user_data",
         "frontend/subscribe_user_data",  # the user's own frontend prefs
         "frontend/get_themes",
-        "frontend/subscribe_system_data",  # frontend-wide flags; no entity data
+        "frontend/get_icons",  # icon translations for a category; cosmetic, no entity data
         "brands/access_token",  # signed URL for integration logos (cosmetic)
         "recorder/info",  # recorder status; no entity data
+        "lovelace/info",  # default dashboard mode enum (storage|yaml); no content
+        "unsubscribe_events",  # cancels a subscription id; carries no entity data
     }
 )
 
@@ -49,6 +51,18 @@ SILENT_OK_SERVICES: frozenset[str] = frozenset(
     }
 )
 
+# Subscriptions we acknowledge (so the frontend's promise resolves and the UI
+# mounts) but never relay: their payloads may carry admin/system content a
+# restricted user must not see. persistent_notification can surface integration
+# warnings that reference hidden entities; labs is experimental-feature flags.
+# Treated like WS_SYNTHETIC_EVENTS: success + empty, no upstream stream.
+WS_SILENT_ACK: frozenset[str] = frozenset(
+    {
+        "persistent_notification/subscribe",
+        "labs/subscribe",
+    }
+)
+
 # Commands the gateway must post-process. Handlers live in ws_proxy.
 WS_GET_STATES = "get_states"  # filter result list
 WS_GET_CONFIG = "get_config"  # redact home GPS from result
@@ -58,6 +72,13 @@ WS_CALL_SERVICE = "call_service"  # enforce target subset of control set
 WS_GET_PANELS = "get_panels"  # filter to allowed dashboards
 WS_LOVELACE_CONFIG = "lovelace/config"  # restrict to allowed dashboards
 WS_LOVELACE_RESOURCES = "lovelace/resources"  # static resource list; forward
+WS_LOVELACE_DASHBOARDS = "lovelace/dashboards/list"  # filter result to allowed dashboards
+# The 'core' system-data carries the INSTANCE-WIDE default_panel (landing
+# dashboard). A restricted user usually can't open it → the frontend lands on
+# an access-denied page. We intercept the subscription and rewrite default_panel
+# to the user's own default (their policy `dashboards.default`, else the
+# built-in 'lovelace' which get_panels aliases). Admins pass through unchanged.
+WS_SUBSCRIBE_SYSTEM_DATA = "frontend/subscribe_system_data"
 
 # Registry lists: forwarded, then the RESULT is filtered to the user's entities
 # (and their areas/devices). Without these the HA frontend can't finish loading;
@@ -79,6 +100,8 @@ WS_HANDLED: frozenset[str] = frozenset(
         WS_GET_PANELS,
         WS_LOVELACE_CONFIG,
         WS_LOVELACE_RESOURCES,
+        WS_LOVELACE_DASHBOARDS,
+        WS_SUBSCRIBE_SYSTEM_DATA,
         WS_REG_ENTITY_LIST,
         WS_REG_ENTITY_DISPLAY,
         WS_REG_DEVICE_LIST,

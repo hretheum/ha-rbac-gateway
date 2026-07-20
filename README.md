@@ -53,18 +53,16 @@ leaking. See [docs/architecture.md](docs/architecture.md) for the full model.
 > run the gateway on a **separate machine** (any Docker/Podman host) pointed at your HA. It is not
 > an HA add-on — see [why](docs/architecture.md#why-not-a-home-assistant-add-on).
 
-A prebuilt multi-arch image (amd64/arm64) is published at
-`ghcr.io/hretheum/ha-rbac-gateway` (`latest`, `0.1`, `0.1.0`) and is pulled
-automatically by the compose and Quadlet files below. To build from source
-instead, run `docker build -t ghcr.io/hretheum/ha-rbac-gateway:latest .` in the
-repo root first.
-
 ## Quick start (docker-compose)
 
 ```bash
 git clone https://github.com/hretheum/ha-rbac-gateway
-cd ha-rbac-gateway/deploy/compose
+cd ha-rbac-gateway
 
+# No image is published yet — build it locally:
+docker build -t ghcr.io/hretheum/ha-rbac-gateway:latest .
+
+cd deploy/compose
 cp ../../.env.example .env
 # edit .env: set HA_URL and HA_TOKEN (a long-lived token from HA:
 #   Profile -> Security -> Long-lived access tokens)
@@ -83,6 +81,9 @@ policy allows. Bind to loopback and put TLS in front for anything beyond a trust
 ## Quick start (Podman / Quadlet, rootless)
 
 ```bash
+# No image is published yet — build it locally under the tag the unit expects:
+podman build -t ghcr.io/hretheum/ha-rbac-gateway:latest .
+
 mkdir -p ~/ha-rbac-gateway/{policies,data}
 cp .env.example ~/ha-rbac-gateway/.env         # edit HA_URL, HA_TOKEN
 cp examples/policies/example-guest.yaml ~/ha-rbac-gateway/policies/guest.yaml

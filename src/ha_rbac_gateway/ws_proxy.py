@@ -27,10 +27,12 @@ from aiohttp import web
 from . import audit, commands
 from .appkeys import GATEWAY
 from .filters import (
+    DEFAULT_PANEL_KEY,
     filter_by_key,
     filter_compressed_entities_event,
     filter_entity_registry,
     filter_entity_registry_display,
+    filter_lovelace_dashboards,
     filter_panels,
     redact_home_location,
     service_call_allowed,
@@ -242,6 +244,11 @@ class _Connection:
             await self._handle_lovelace_config(mid, data)
         elif mtype == commands.WS_LOVELACE_RESOURCES:
             await self._forward(data)
+        elif mtype == commands.WS_LOVELACE_DASHBOARDS:
+            self.pending[mid] = "filter_lovelace_dashboards"
+            await self._forward(data)
+        elif mtype == commands.WS_SUBSCRIBE_SYSTEM_DATA:
+            await self._handle_subscribe_system_data(mid, data)
         elif mtype == commands.WS_REG_ENTITY_LIST:
             self.pending[mid] = "filter_entity_reg"
             await self._forward(data)
@@ -268,6 +275,14 @@ class _Connection:
                     "success": True,
                     "result": commands.WS_SOFT_EMPTY[mtype],
                 }
+            )
+        elif mtype in commands.WS_SILENT_ACK:
+            # Acknowledge the subscription so the frontend's promise resolves and
+            # the UI mounts, but relay nothing upstream (the payload may carry
+            # admin/system content a restricted user must not see).
+            audit.allow(self.identity, "ws", mtype, "silent-ack (not relayed)")
+            await self.client.send_json(
+                {"id": mid, "type": "result", "success": True, "result": None}
             )
         else:
             # Includes WS_EXPLICIT_DENY and anything unknown. Default deny.
@@ -318,6 +333,17 @@ class _Connection:
                 "subscribe_events",
                 f"event_type {event_type!r} not allowed (use state_changed)",
             )
+
+    async def _handle_subscribe_system_data(self, mid: int, data: dict) -> None:
+        # The 'core' key streams the instance-wide default_panel; for the 'core'
+        # key we mark the subscription so its events get default_panel rewritten
+        # to the user's own default (see _relay_event). Other keys stream through
+        # untouched. The subscribe itself always forwards so HA establishes it.
+        key = data.get("key")
+        kind = "system_data_core" if key == "core" else "passthrough_event"
+        self.subs[mid] = _Sub(kind)
+        audit.allow(self.identity, "ws", "frontend/subscribe_system_data", f"key={key}")
+        await self.upstream.send_json(data)
 
     async def _handle_call_service(self, mid: int, data: dict) -> None:
         if data.get("return_response"):
@@ -438,6 +464,12 @@ class _Connection:
                 if isinstance(result, dict)
                 else {}
             )
+        elif kind == "filter_lovelace_dashboards":
+            data["result"] = (
+                filter_lovelace_dashboards(result, self.ev.policy.dashboards)
+                if isinstance(result, list)
+                else []
+            )
         elif kind == "filter_entity_reg":
             data["result"] = filter_entity_registry(result, self._allowed_entities())
         elif kind == "filter_entity_display":
@@ -465,5 +497,14 @@ class _Connection:
         elif sub.kind == "state_changed":
             if state_changed_allowed(event, allowed):
                 await self.client.send_json(data)
+        elif sub.kind == "system_data_core":
+            # Rewrite the instance-wide default_panel to the user's own default
+            # dashboard (else the built-in 'lovelace', which get_panels aliases),
+            # so a restricted user lands on a dashboard they can actually open.
+            value = event.get("value")
+            if isinstance(value, dict):
+                target = self.ev.policy.default_dashboard or DEFAULT_PANEL_KEY
+                data = {**data, "event": {**event, "value": {**value, "default_panel": target}}}
+            await self.client.send_json(data)
         else:  # passthrough_event (stateless UI refresh)
             await self.client.send_json(data)
