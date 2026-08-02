@@ -187,9 +187,7 @@ def filter_lovelace_dashboards(dashboards: list, allowed_dashboards: set) -> lis
     if not isinstance(dashboards, list):
         return []
     return [
-        d
-        for d in dashboards
-        if isinstance(d, dict) and d.get("url_path") in allowed_dashboards
+        d for d in dashboards if isinstance(d, dict) and d.get("url_path") in allowed_dashboards
     ]
 
 

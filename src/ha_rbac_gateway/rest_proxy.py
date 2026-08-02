@@ -50,7 +50,12 @@ def _bearer(request: web.Request) -> str:
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
         return auth[7:]
-    return ""
+    # <img>/<audio>/<video> elements (HA frontend asset URLs, ESPHome/Voice
+    # Satellite media fetches) can't set an Authorization header, so HA's own
+    # clients embed the same access token as a query param instead. Honor
+    # that second transport for the identical token — identity.resolve()
+    # still validates it against HA itself either way.
+    return request.query.get("token") or request.query.get("access_token") or ""
 
 
 def _fwd_headers(request: web.Request) -> dict[str, str]:
@@ -74,6 +79,12 @@ class RestProxy:
     async def _handle_api(self, request: web.Request) -> web.StreamResponse:
         if self.gw.trip.is_tripped():
             return self._deny(None, request, "gateway tripped (fail closed)", status=503)
+
+        if request.method == "GET" and any(
+            request.path.startswith(p) for p in commands.REST_PUBLIC_UNAUTH_PREFIXES
+        ):
+            audit.allow(None, "rest", "GET", f"{request.path} (public, requires_auth=False in HA)")
+            return await self._passthrough(request)
 
         token = _bearer(request)
         identity = await self.gw.identity.resolve(token) if token else None

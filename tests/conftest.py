@@ -15,6 +15,7 @@ from aiohttp import WSMsgType, web
 from aiohttp.test_utils import TestServer
 
 from ha_rbac_gateway.appkeys import GATEWAY
+from ha_rbac_gateway.cli import PathOnlyAccessLogger
 from ha_rbac_gateway.config import load_config
 from ha_rbac_gateway.server import build_app
 
@@ -98,6 +99,12 @@ async def _service(request):
     # HA returns the list of states that changed. Include a couple to prove the
     # gateway filters even the *response* of an allowed call.
     return web.json_response([STATES["light.kitchen"], STATES["sensor.secret"]])
+
+
+async def _tts_proxy(request):
+    # HA core marks this view `requires_auth = False` (tts/__init__.py), so the
+    # fake serves it to anyone — a local speaker fetching it carries no token.
+    return web.Response(body=b"ID3fake-tts-audio", content_type="audio/mpeg")
 
 
 async def _template(request):
@@ -249,6 +256,7 @@ def make_fake_ha_app() -> web.Application:
     app.router.add_get("/api/states/{eid}", _state_one)
     app.router.add_get("/api/services", _services_catalogue)
     app.router.add_post("/api/services/{domain}/{service}", _service)
+    app.router.add_get("/api/tts_proxy/{tail:.*}", _tts_proxy)
     app.router.add_post("/api/template", _template)
     app.router.add_get("/api/websocket", _ws)
     return app
@@ -257,7 +265,9 @@ def make_fake_ha_app() -> web.Application:
 @pytest_asyncio.fixture
 async def fake_ha():
     server = TestServer(make_fake_ha_app())
-    await server.start_server()
+    # No access log for the fake: it would be the only other writer to
+    # "aiohttp.access", and the tests assert on what the gateway logs there.
+    await server.start_server(access_log=None)
     yield server
     await server.close()
 
@@ -288,7 +298,10 @@ async def gateway(fake_ha, tmp_path, monkeypatch):
     config = load_config(env)
     app = build_app(config)
     server = TestServer(app)
-    await server.start_server()
+    # Same access logger the entry point installs (aiohttp drops unknown kwargs
+    # in TestServer.__init__ — they only take effect via start_server), so the
+    # tests exercise the logging path production actually runs.
+    await server.start_server(access_log_class=PathOnlyAccessLogger)
     server.gateway = app[GATEWAY]  # type: ignore[attr-defined]
     yield server
     await server.close()
