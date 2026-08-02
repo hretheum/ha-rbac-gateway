@@ -72,6 +72,15 @@ an authorization layer on top.
   inside HA with its own access to the HA core API is outside the gateway's
   reach — the gateway only mediates traffic that flows through it from
   restricted clients.
+- **A restricted user who can reach Home Assistant directly.** The whole model
+  assumes `:8123` is not routable for them — their own login token is a valid
+  HA token, so anyone who can open HA directly bypasses every policy here.
+  Bind HA to loopback (or otherwise firewall it) and expose only the gateway.
+  This is not new with any one feature, but `allow.token_creation` raises the
+  stakes: a long-lived token is durable and copyable, so it turns "must be on
+  the network right now, in a browser session" into a credential that keeps
+  working later, elsewhere, for whoever holds it. Grant it only where HA is
+  genuinely unreachable except through the gateway.
 
 ### Fail-closed philosophy
 

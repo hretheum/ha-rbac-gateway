@@ -95,8 +95,12 @@ mechanisms never interact; admins bypass the router before it is consulted.
 This does **not** widen entity access. HA scopes both commands to the
 connection's own user, and the gateway forwards the user's own token upstream
 (never the backend token), so the caller can only act on themselves. A token
-minted this way is re-evaluated against the same policy on every request it is
-later used for; what changes is its lifetime, not its reach. The request is
+minted this way is re-evaluated against the same policy on every request that
+comes *through the gateway*; what changes is its lifetime, not its reach.
+Sent directly to HA it is an ordinary token for that account — exactly like
+the user's existing login token — so the standing assumption that restricted
+users cannot reach `:8123` themselves carries more weight once tokens outlive
+a browser session (see SECURITY.md). The request is
 relayed unmodified, the token-list result is type-guarded to `[]` on an
 unexpected shape like every other filtered result, and only the command name is
 audited — never the minted credential. Revocation

@@ -47,10 +47,19 @@ full HA administrator, which defeats the point of this project.
 
 It is **not** an entity grant. Home Assistant scopes both commands to the
 calling user's own account, and a token minted this way is still subject to
-this same policy on every request that uses it — the holder sees exactly what
-the rest of this file allows, nothing more. What it does change is lifetime: a
-long-lived token outlives a browser session, so treat it as a credential the
-user is now responsible for.
+this same policy on **every request that goes through the gateway** — verified
+against a live instance: the minted token, replayed through the gateway, saw
+the same two entities the policy allows and nothing else.
+
+What it changes is lifetime, and that deserves care. The same token sent
+*directly* to Home Assistant is an ordinary HA token and sees everything that
+user's HA account can see — as their normal login token already does. The
+gateway's model has always assumed restricted users cannot reach `:8123`
+themselves (bind HA to loopback and expose only the gateway); this grant makes
+that assumption load-bearing for longer, because a long-lived token is durable
+and copyable where a browser session is not. Grant it only where HA is
+genuinely unreachable except through the gateway, and treat the result as a
+credential the user is now responsible for.
 
 Revoking a token is deliberately **not** included — that stays in Home
 Assistant's own profile page. Only real YAML booleans are accepted; a quoted
