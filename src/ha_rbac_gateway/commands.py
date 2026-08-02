@@ -63,6 +63,27 @@ WS_SILENT_ACK: frozenset[str] = frozenset(
     }
 )
 
+# Own-account token management. NOT part of the default allowlist: these are
+# gated per-user on `allow.token_creation` in the policy (see ws_proxy), so a
+# policy that predates the field keeps getting today's DENY.
+#
+# Both are `@websocket_api.ws_require_user()` in HA core — NOT `require_admin`
+# (homeassistant/components/auth/__init__.py), so HA itself lets any signed-in
+# user call them; it is the gateway's allowlist that blocks them today. They act
+# only on the CALLER's own account (HA scopes both to `connection.user`), so
+# neither can read another user's data nor widen this user's entity access:
+#   - auth/long_lived_access_token {client_name, lifespan[, client_icon]}
+#     -> result is the new token STRING.
+#   - auth/refresh_tokens {} -> result is a list of the caller's own token
+#     METADATA (id, client_id, client_name, created_at, expire_at, is_current,
+#     last_used_at, last_used_ip, ...). No token values are returned.
+# noqa S105: these are HA command NAMES matched against inbound message types,
+# not credentials. No token value is ever stored in this module.
+WS_LONG_LIVED_TOKEN = "auth/long_lived_access_token"  # noqa: S105
+WS_REFRESH_TOKENS = "auth/refresh_tokens"  # noqa: S105
+
+WS_TOKEN_MANAGEMENT: frozenset[str] = frozenset({WS_LONG_LIVED_TOKEN, WS_REFRESH_TOKENS})
+
 # Commands the gateway must post-process. Handlers live in ws_proxy.
 WS_GET_STATES = "get_states"  # filter result list
 WS_GET_CONFIG = "get_config"  # redact home GPS from result
@@ -156,6 +177,14 @@ WS_EXPLICIT_DENY: frozenset[str] = frozenset(
         "config/area_registry/create",
         "config/area_registry/update",
         "config/area_registry/delete",
+        # Deliberate asymmetry with WS_TOKEN_MANAGEMENT above: a user granted
+        # `token_creation` may MINT and LIST their own tokens, but revoking one
+        # stays denied. Revocation takes a refresh_token_id, and a bug that let
+        # an id from another account through would log that user out of every
+        # session; minting only ever affects the caller. Revoke from HA's own
+        # profile page instead. Listed here so the gap is visible to auditors —
+        # enforcement is simply "not in the allowlist".
+        "auth/delete_refresh_token",
         "config/auth/list",
         "config/auth/create",
         "config/auth/update",

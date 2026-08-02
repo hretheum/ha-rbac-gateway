@@ -7,6 +7,23 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Policies may grant `allow.token_creation` (boolean, default `false`), which
+  lets that user create and list **their own** Home Assistant long-lived access
+  tokens through the gateway (`auth/long_lived_access_token`,
+  `auth/refresh_tokens`). Both are `ws_require_user`, not `require_admin`, in HA
+  core, so previously the only way to issue a restricted user a token was to
+  make them an HA administrator. The grant carries no entity access: HA scopes
+  both commands to the caller's own account, and a token minted this way is
+  re-evaluated against the same policy on every later request. Opt-in — a policy
+  file written before this field parses to `false` and behaves exactly as it did
+  before. Revocation (`auth/delete_refresh_token`) is deliberately still denied.
+- Admin panel: a **Domains** filter box (case-insensitive substring). Filtering
+  only hides rows, so a checked domain scrolled out of view is still saved.
+- Admin panel: an **Own access tokens** checkbox for the grant above, so the
+  setting round-trips instead of being silently dropped when the panel — which
+  rebuilds its payload from the DOM — saves an unrelated change.
+
+### Added
 - Local devices that cannot carry the gateway's auth (ESPHome Voice Satellite
   and the HA frontend's `<img>`/`<audio>` fetches) can now reach the three HA
   views that HA core itself marks `requires_auth = False`

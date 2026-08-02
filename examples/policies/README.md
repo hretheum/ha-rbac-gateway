@@ -36,6 +36,35 @@ Under `allow`, three list types, each an item with `id` and optional
 Everything not granted is denied. There is no `deny` list — the model is
 allowlist-only.
 
+## Own access tokens (`allow.token_creation`)
+
+`allow: { token_creation: true }` (a boolean, default `false`) lets this user
+create and list **their own** Home Assistant long-lived access tokens through
+the gateway — the two WebSocket commands `auth/long_lived_access_token` and
+`auth/refresh_tokens`, which are otherwise denied like everything outside the
+allowlist. Without it, the only way to issue a token is to make the person a
+full HA administrator, which defeats the point of this project.
+
+It is **not** an entity grant. Home Assistant scopes both commands to the
+calling user's own account, and a token minted this way is still subject to
+this same policy on **every request that goes through the gateway** — verified
+against a live instance: the minted token, replayed through the gateway, saw
+the same two entities the policy allows and nothing else.
+
+What it changes is lifetime, and that deserves care. The same token sent
+*directly* to Home Assistant is an ordinary HA token and sees everything that
+user's HA account can see — as their normal login token already does. The
+gateway's model has always assumed restricted users cannot reach `:8123`
+themselves (bind HA to loopback and expose only the gateway); this grant makes
+that assumption load-bearing for longer, because a long-lived token is durable
+and copyable where a browser session is not. Grant it only where HA is
+genuinely unreachable except through the gateway, and treat the result as a
+credential the user is now responsible for.
+
+Revoking a token is deliberately **not** included — that stays in Home
+Assistant's own profile page. Only real YAML booleans are accepted; a quoted
+`"true"` is rejected at startup rather than read as a grant.
+
 ## Dashboards
 
 `dashboards.default` and `dashboards.allowed` are Lovelace `url_path`s the user

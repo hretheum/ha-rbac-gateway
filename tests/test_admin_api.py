@@ -178,3 +178,61 @@ async def test_delete_policy_locks_out(gateway):
             assert r.status == 200
     # no policy -> user is denied everything (evaluator_for returns None)
     assert gw.evaluator_for(Identity("u1", "Restricted", False, False)) is None
+
+
+# --- allow.token_creation round-trip -----------------------------------------
+
+
+async def test_put_policy_persists_token_creation(gateway):
+    # The panel rebuilds its payload from the DOM, so the field has to survive
+    # editor -> YAML -> parser. If editor_to_mapping dropped it, saving any
+    # unrelated change through the UI would silently revoke the grant.
+    body = {
+        "user": {"id": "u1"},
+        "entities": [{"id": "light.kitchen", "access": "control"}],
+        "areas": [],
+        "domains": [],
+        "token_creation": True,
+        "dashboards": {"default": "guest-home", "allowed": ["guest-home"]},
+    }
+    async with aiohttp.ClientSession() as s:
+        async with s.put(
+            base(gateway) + "/rbac-admin/api/policies/u1", headers=ADMIN, json=body
+        ) as r:
+            assert r.status == 200
+        async with s.get(base(gateway) + "/rbac-admin/api/policies/u1", headers=ADMIN) as r:
+            assert (await r.json())["token_creation"] is True
+
+        # ...and unchecking it takes the grant away again.
+        async with s.put(
+            base(gateway) + "/rbac-admin/api/policies/u1",
+            headers=ADMIN,
+            json={**body, "token_creation": False},
+        ) as r:
+            assert r.status == 200
+        async with s.get(base(gateway) + "/rbac-admin/api/policies/u1", headers=ADMIN) as r:
+            assert (await r.json())["token_creation"] is False
+
+
+async def test_put_policy_rejects_non_boolean_token_creation(gateway):
+    async with aiohttp.ClientSession() as s:
+        async with s.put(
+            base(gateway) + "/rbac-admin/api/policies/u1",
+            headers=ADMIN,
+            json={
+                "user": {"id": "u1"},
+                "entities": [],
+                "areas": [],
+                "domains": [],
+                "token_creation": "yes",
+                "dashboards": {"default": None, "allowed": []},
+            },
+        ) as r:
+            assert r.status == 400
+            assert (await r.json())["error"] == "invalid_policy"
+
+
+async def test_empty_policy_template_declares_token_creation_off(gateway):
+    async with aiohttp.ClientSession() as s:
+        async with s.get(base(gateway) + "/rbac-admin/api/policies/nobody", headers=ADMIN) as r:
+            assert (await r.json())["token_creation"] is False

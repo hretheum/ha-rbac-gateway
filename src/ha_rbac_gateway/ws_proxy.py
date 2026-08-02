@@ -276,6 +276,8 @@ class _Connection:
                     "result": commands.WS_SOFT_EMPTY[mtype],
                 }
             )
+        elif mtype in commands.WS_TOKEN_MANAGEMENT:
+            await self._handle_token_management(mid, mtype, data)
         elif mtype in commands.WS_SILENT_ACK:
             # Acknowledge the subscription so the frontend's promise resolves and
             # the UI mounts, but relay nothing upstream (the payload may carry
@@ -383,6 +385,32 @@ class _Connection:
         self.pending[mid] = "passthrough"
         await self.upstream.send_json(data)
 
+    async def _handle_token_management(self, mid: int, mtype: str, data: dict) -> None:
+        """auth/long_lived_access_token + auth/refresh_tokens, per-policy opt-in.
+
+        Gated on `allow.token_creation`, deliberately NOT on the admin
+        passthrough: the point is to let a *restricted* user mint a token for
+        their own account without making them an HA administrator. Admins never
+        reach here — they bypass the whole router (see `passthrough`).
+
+        Nothing about the request is rewritten. Both commands are scoped by HA
+        to the connection's own user, and the gateway forwards the user's own
+        token upstream (never the backend token), so the caller can only ever
+        act on themselves. Neither command grants entity access: a token minted
+        here is still subject to this same policy on every future request.
+        """
+        if not self.ev.policy.token_creation:
+            await self._deny(mid, mtype, "token management not enabled for this user")
+            return
+        # Only the command type is audited. The result of
+        # auth/long_lived_access_token IS a credential, so it must never reach
+        # a log line — see audit.py and cli.PathOnlyAccessLogger.
+        audit.allow(self.identity, "ws", mtype, "policy allows own-token management")
+        self.pending[mid] = (
+            "token_list_guard" if mtype == commands.WS_REFRESH_TOKENS else "passthrough"
+        )
+        await self.upstream.send_json(data)
+
     async def _handle_lovelace_config(self, mid: int, data: dict) -> None:
         # url_path None / "lovelace" is the router's default. If the user's real
         # default dashboard isn't the built-in overview, serve that instead (the
@@ -478,6 +506,12 @@ class _Connection:
             data["result"] = filter_by_key(result, "id", self.ev.allowed_device_ids())
         elif kind == "filter_area_reg":
             data["result"] = filter_by_key(result, "area_id", self.ev.allowed_area_ids())
+        elif kind == "token_list_guard":
+            # auth/refresh_tokens returns the caller's OWN token metadata, so
+            # there is nothing to filter per-entity — but keep the house rule
+            # that an unexpected upstream shape yields empty, never a payload
+            # passed through unexamined.
+            data["result"] = result if isinstance(result, list) else []
         return data
 
     def _allowed_entities(self) -> set[str]:

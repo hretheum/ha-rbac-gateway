@@ -71,6 +71,42 @@ Why allowlist and not blocklist: a blocklist fails **open** on every future HA
 change (a new command or endpoint leaks until someone notices). An allowlist
 fails **closed** — a new command is simply denied until we add support for it.
 
+### Per-policy commands: own-token management
+
+Two WebSocket commands sit outside the shared allowlist and are enabled per
+user by `allow.token_creation` in their policy (default `false`, so every
+policy written before the field existed keeps its current denial):
+
+- `auth/long_lived_access_token` — mint a token, result is the token string;
+- `auth/refresh_tokens` — list the caller's own token *metadata* (no values).
+
+Both are `@websocket_api.ws_require_user()` in HA core, not `require_admin`
+(`homeassistant/components/auth/__init__.py`), so HA itself permits them for
+any signed-in user; today it is this gateway that blocks them. Without the
+opt-in, the only way to give a restricted user a token is to promote them to
+HA administrator — which is exactly what this project exists to avoid.
+
+The gating is a policy field rather than an extension of the
+`is_admin or is_owner` passthrough on purpose: passthrough means "stop
+filtering this session entirely", and the goal here is the opposite — a user
+who stays fully restricted and merely gains one narrow capability. The two
+mechanisms never interact; admins bypass the router before it is consulted.
+
+This does **not** widen entity access. HA scopes both commands to the
+connection's own user, and the gateway forwards the user's own token upstream
+(never the backend token), so the caller can only act on themselves. A token
+minted this way is re-evaluated against the same policy on every request that
+comes *through the gateway*; what changes is its lifetime, not its reach.
+Sent directly to HA it is an ordinary token for that account — exactly like
+the user's existing login token — so the standing assumption that restricted
+users cannot reach `:8123` themselves carries more weight once tokens outlive
+a browser session (see SECURITY.md). The request is
+relayed unmodified, the token-list result is type-guarded to `[]` on an
+unexpected shape like every other filtered result, and only the command name is
+audited — never the minted credential. Revocation
+(`auth/delete_refresh_token`) is deliberately excluded and remains in HA's own
+profile UI.
+
 Filtering an allowed response is not always about entities: `get_config` /
 `GET /api/config` are allowed (the frontend needs them) but their home GPS
 coordinates (`latitude`/`longitude`/`elevation`) are zeroed for restricted

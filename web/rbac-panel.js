@@ -165,7 +165,9 @@ class RbacPanel extends HTMLElement {
       </div>
       <div class="card">
         <h2>Areas</h2><div class="list">${areaRows || '<div class="muted">No areas.</div>'}</div>
-        <h2>Domains</h2><div class="list">${domRows}</div>
+        <h2>Domains</h2>
+        <div class="pick"><input id="domfilter" placeholder="Filter domains…"></div>
+        <div class="list" id="domlist">${domRows}<div class="muted" id="domempty" style="display:none">No matching domains.</div></div>
       </div>
       <div class="card">
         <h2>Individual entities</h2>
@@ -180,6 +182,12 @@ class RbacPanel extends HTMLElement {
         <div class="list" id="entsel"></div>
       </div>
       <div class="card">
+        <h2>Own access tokens</h2>
+        <label class="row"><input type="checkbox" id="tokencreate" ${p.token_creation ? "checked" : ""}>
+          <span class="name">May create and list their own long-lived access tokens
+          <span class="eid">grants no extra entities — a token they mint stays limited by this policy</span></span></label>
+      </div>
+      <div class="card">
         <button class="primary" id="save">Save &amp; apply</button>
         <button id="revoke" style="margin-left:8px;cursor:pointer">Revoke all access</button>
         <div id="msg2"></div>
@@ -191,6 +199,17 @@ class RbacPanel extends HTMLElement {
     this.shadowRoot.getElementById("entadd").addEventListener("click", () => {
       const v = this.shadowRoot.getElementById("entfilter").value.trim();
       if (v) { this._addEntity(v, "read"); this.shadowRoot.getElementById("entfilter").value = ""; }
+    });
+    this.shadowRoot.getElementById("domfilter").addEventListener("input", (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      let shown = 0;
+      for (const row of this.shadowRoot.querySelectorAll("#domlist label.row")) {
+        const dom = row.querySelector("input[data-domain]").getAttribute("data-domain");
+        const hit = !q || dom.toLowerCase().includes(q);
+        row.style.display = hit ? "" : "none";
+        if (hit) shown++;
+      }
+      this.shadowRoot.getElementById("domempty").style.display = shown ? "none" : "";
     });
     this.shadowRoot.getElementById("save").addEventListener("click", () => this._save());
     this.shadowRoot.getElementById("revoke").addEventListener("click", () => this._revoke());
@@ -242,11 +261,13 @@ class RbacPanel extends HTMLElement {
     const dashboards = q("input[data-dash]:checked").map((c) => c.getAttribute("data-dash"));
     const def = this.shadowRoot.getElementById("default").value || null;
     if (def && !dashboards.includes(def)) dashboards.push(def);
+    const tokenBox = this.shadowRoot.getElementById("tokencreate");
     return {
       user: { id: this._selectedUser },
       entities,
       areas: checked("area"),
       domains: checked("domain"),
+      token_creation: !!(tokenBox && tokenBox.checked),
       dashboards: { default: def, allowed: dashboards },
     };
   }
@@ -272,7 +293,7 @@ class RbacPanel extends HTMLElement {
     try {
       await this._api("/policies/" + encodeURIComponent(this._selectedUser), { method: "DELETE" });
       this._policy = { user: { id: this._selectedUser }, entities: [], areas: [], domains: [],
-        dashboards: { default: null, allowed: [] } };
+        token_creation: false, dashboards: { default: null, allowed: [] } };
       this._renderEditor();
       this._msg("Policy removed — user is now locked out.", "ok");
     } catch (e) {

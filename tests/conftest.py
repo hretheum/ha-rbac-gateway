@@ -23,7 +23,16 @@ TOKENS = {
     "backend": {"id": "backend-user", "name": "Backend", "is_admin": True, "is_owner": False},
     "restricted": {"id": "u1", "name": "Restricted", "is_admin": False, "is_owner": False},
     "admin": {"id": "admin1", "name": "Admin", "is_admin": True, "is_owner": True},
+    # Same restriction level as "restricted", but their policy opts into
+    # allow.token_creation — the two exist side by side so every token test can
+    # assert the grant is what makes the difference, not the user's rank.
+    "tokenuser": {"id": "u2", "name": "TokenUser", "is_admin": False, "is_owner": False},
 }
+
+# What the fake HA hands back for auth/long_lived_access_token. Fictional, and
+# deliberately not JWT-shaped: the security grep must never confuse it with a
+# real credential.
+FAKE_MINTED_TOKEN = "test-token-minted-by-fake-ha"  # noqa: S105 - fixture, not a secret
 
 STATES = {
     "light.kitchen": {"entity_id": "light.kitchen", "state": "off"},
@@ -234,6 +243,29 @@ async def _ws_command(ws, data, identity):
                 }
             )
         )
+    elif mtype == "auth/long_lived_access_token":
+        # Real HA returns the token string itself (auth/__init__.py:
+        # connection.send_result(msg["id"], access_token)). It is scoped to the
+        # authenticated connection's user; the fake ignores client_name/lifespan.
+        await ws.send_json(ok(FAKE_MINTED_TOKEN))
+    elif mtype == "auth/refresh_tokens":
+        if data.get("_malform"):  # unexpected upstream shape (should fail closed)
+            await ws.send_json(ok({"unexpected": "not a list"}))
+            return
+        # Metadata only — real HA never returns token values here.
+        await ws.send_json(
+            ok(
+                [
+                    {
+                        "id": "rt1",
+                        "client_id": None,
+                        "client_name": "existing",
+                        "is_current": False,
+                        "last_used_ip": "127.0.0.1",
+                    }
+                ]
+            )
+        )
     elif mtype == "render_template":
         # If the gateway ever forwards this, it leaks. Emit a fake event.
         await ws.send_json(ok(None))
@@ -279,6 +311,19 @@ async def gateway(fake_ha, tmp_path, monkeypatch):
     (policy_dir / "u1.yaml").write_text(
         "user: { id: u1 }\n"
         "allow:\n"
+        "  entities:\n"
+        "    - { id: light.kitchen, access: control }\n"
+        "    - { id: sensor.temp, access: read }\n"
+        "dashboards:\n"
+        "  default: guest-home\n"
+        "  allowed: [guest-home]\n"
+    )
+    # Identical grants to u1, differing ONLY in allow.token_creation, so a test
+    # comparing the two isolates the new field as the single cause.
+    (policy_dir / "u2.yaml").write_text(
+        "user: { id: u2 }\n"
+        "allow:\n"
+        "  token_creation: true\n"
         "  entities:\n"
         "    - { id: light.kitchen, access: control }\n"
         "    - { id: sensor.temp, access: read }\n"

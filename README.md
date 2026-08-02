@@ -122,6 +122,8 @@ allow:
     - { id: light, access: read }                       # every light, read-only
   areas:
     - { id: living_room, access: control }              # everything in an area
+  token_creation: true                                  # optional, default false —
+                                                        # may manage their OWN HA tokens
 
 dashboards:
   default: guest-home
