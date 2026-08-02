@@ -203,6 +203,20 @@ REST_FRONTEND_PREFIXES: tuple[str, ...] = (
 # for a user to obtain a token. Forwarded as-is.
 REST_AUTH_PREFIX = "/auth/"
 
+# HA views that are `requires_auth = False` in HA core itself — the security
+# boundary for these is an unguessable id embedded in the path (e.g. a signed
+# tts token, a random connection-test id), not a session. Note HA caches TTS
+# files, so such an id can stay valid for a while: unguessable, not one-shot.
+# Local devices (ESPHome/Voice Satellite) fetch these directly and
+# cannot carry our Bearer/token auth, so we mirror HA's own trust boundary
+# instead of rejecting them (verified against homeassistant/components/
+# assist_satellite/connection_test.py, tts/__init__.py, esphome/ffmpeg_proxy.py).
+REST_PUBLIC_UNAUTH_PREFIXES: tuple[str, ...] = (
+    "/api/assist_satellite/connection_test/",
+    "/api/tts_proxy/",
+    "/api/esphome/ffmpeg_proxy/",
+)
+
 # Explicitly denied REST endpoints (documented for auditors).
 REST_EXPLICIT_DENY_PREFIXES: tuple[str, ...] = (
     "/api/template",

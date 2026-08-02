@@ -1,6 +1,10 @@
 """End-to-end: real gateway in front of the fake HA. The fake filters nothing,
 so anything scoped here was scoped by the gateway."""
 
+import asyncio
+import logging
+import time
+
 import aiohttp
 import pytest
 
@@ -133,6 +137,94 @@ async def test_healthz(gateway):
             assert r.status == 200
             body = await r.json()
     assert body["status"] == "ok"
+
+
+# --- unauthenticated public prefixes + query-string token --------------------
+
+
+async def test_public_prefix_tts_proxy_passes_without_token(gateway):
+    # HA serves this view with requires_auth = False; a speaker fetching the
+    # audio cannot carry our auth. The bytes must arrive unchanged.
+    async with aiohttp.ClientSession() as s:
+        async with s.get(base(gateway) + "/api/tts_proxy/abcdef123.mp3") as r:
+            assert r.status == 200
+            assert await r.read() == b"ID3fake-tts-audio"
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/api/assist_satellite/connection_test/abc123", "/api/esphome/ffmpeg_proxy/dev/abc.flac"],
+)
+async def test_public_prefixes_reach_upstream_without_token(gateway, path):
+    # The fake HA has no route for these, so a 404 *from upstream* is the proof
+    # they were forwarded; a gateway rejection would be 401/403 instead.
+    async with aiohttp.ClientSession() as s:
+        async with s.get(base(gateway) + path) as r:
+            assert r.status == 404
+
+
+async def test_public_prefix_post_still_denied(gateway):
+    # The unauthenticated exception is GET-only: no writes without a token.
+    async with aiohttp.ClientSession() as s:
+        async with s.post(base(gateway) + "/api/tts_proxy/abcdef123.mp3", data=b"x") as r:
+            assert r.status == 401
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/api/tts_proxyEVIL/x", "/api/tts_proxy_evil/x", "/api/esphome/ffmpeg_proxyX/y"],
+)
+async def test_public_prefix_lookalikes_denied(gateway, path):
+    # The allowlist matches whole path segments (each entry ends in "/"), so a
+    # neighbouring path that merely starts with the same letters stays closed.
+    async with aiohttp.ClientSession() as s:
+        async with s.get(base(gateway) + path) as r:
+            assert r.status == 401
+
+
+@pytest.mark.parametrize("param", ["token", "access_token"])
+async def test_query_token_garbage_denied(gateway, param):
+    async with aiohttp.ClientSession() as s:
+        async with s.get(base(gateway) + f"/api/states?{param}=not-a-real-token") as r:
+            assert r.status == 401
+
+
+@pytest.mark.parametrize("param", ["token", "access_token"])
+async def test_query_token_resolves_same_identity_as_header(gateway, param):
+    # 403 (not 401) proves the query-string token authenticated and the policy
+    # was applied to it — the same verdict the Authorization header gets for
+    # this entity (see test_rest_single_state_allowed_and_denied).
+    url = base(gateway) + f"/api/states/sensor.secret?{param}=restricted"
+    async with aiohttp.ClientSession() as s:
+        async with s.get(url) as r:
+            assert r.status == 403
+            assert (await r.json())["error"] == "forbidden_by_gateway"
+
+
+async def test_access_log_never_records_the_query_token(gateway, caplog):
+    # aiohttp's default access log formats %r (the request line, query string
+    # included) — with tokens travelling in the query string that would write
+    # live credentials to the container log.
+    url = base(gateway) + "/api/tts_proxy/abcdef123.mp3?token=SUPERSECRETCANARY"
+    with caplog.at_level(logging.INFO, logger="aiohttp.access"):
+        async with aiohttp.ClientSession() as s:
+            async with s.get(url) as r:
+                assert r.status == 200
+        text = await _wait_for_access_log(caplog, "/api/tts_proxy/abcdef123.mp3")
+    assert "SUPERSECRETCANARY" not in text
+    assert "SUPERSECRETCANARY" not in caplog.text  # nor in any other logger
+
+
+async def _wait_for_access_log(caplog, needle: str, timeout: float = 2.0) -> str:
+    # The server logs the request after the client already has the response.
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        records = [r.getMessage() for r in caplog.records if r.name == "aiohttp.access"]
+        text = "\n".join(records)
+        if needle in text:
+            return text
+        await asyncio.sleep(0.01)
+    raise AssertionError(f"no access-log line containing {needle!r}")
 
 
 # --- WebSocket ---------------------------------------------------------------

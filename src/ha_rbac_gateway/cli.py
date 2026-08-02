@@ -6,10 +6,33 @@ import argparse
 import logging
 
 from aiohttp import web
+from aiohttp.abc import AbstractAccessLogger
 
 from . import __version__
 from .config import ConfigError, load_config
 from .server import build_app
+
+
+class PathOnlyAccessLogger(AbstractAccessLogger):
+    """Access log line that never carries a query string.
+
+    HA's own clients send the access token as `?token=`/`?access_token=` on
+    media URLs (see `rest_proxy._bearer`), so aiohttp's default `%r` atom — the
+    request line, i.e. `request.path_qs` — would write live user tokens in clear
+    text to the container log. Formatting from `request.path` drops them at the
+    source; `%r` cannot be made safe by changing `access_log_format` alone.
+    """
+
+    def log(self, request: web.BaseRequest, response: web.StreamResponse, time: float) -> None:
+        self.logger.info(
+            '%s "%s %s" %s %s %.6f',
+            request.remote or "-",
+            request.method,
+            request.path,
+            response.status,
+            response.body_length,
+            time,
+        )
 
 
 def main() -> None:
@@ -29,7 +52,13 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     app = build_app(config)
-    web.run_app(app, host=config.listen_host, port=config.listen_port, print=None)
+    web.run_app(
+        app,
+        host=config.listen_host,
+        port=config.listen_port,
+        print=None,
+        access_log_class=PathOnlyAccessLogger,
+    )
 
 
 if __name__ == "__main__":

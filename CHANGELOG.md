@@ -6,6 +6,38 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Local devices that cannot carry the gateway's auth (ESPHome Voice Satellite
+  and the HA frontend's `<img>`/`<audio>` fetches) can now reach the three HA
+  views that HA core itself marks `requires_auth = False`
+  (`REST_PUBLIC_UNAUTH_PREFIXES`: assist_satellite connection test, tts_proxy,
+  esphome ffmpeg_proxy). GET only, and still audited. Verified against HA
+  source: `assist_satellite/connection_test.py`, `tts/__init__.py`,
+  `esphome/ffmpeg_proxy.py`. Without this, local TTS playback and the voice
+  satellite setup wizard time out behind the gateway.
+- `_bearer()` also accepts the access token as a `?token=`/`?access_token=`
+  query parameter, the transport HA's own clients use for media URLs where an
+  `Authorization` header is impossible. The token is validated against HA
+  identically either way. Because that puts credentials in the URL, the access
+  log is redacted at the same time (see below) — otherwise every such request
+  would leave a usable token in the container log.
+
+### Fixed
+- The HTTP access log no longer records query strings. aiohttp's default format
+  logs the request line (`%r`, i.e. the path *with* its query), which since the
+  `?token=` transport above means live user tokens in `podman logs`/journald in
+  clear text. `web.run_app` now installs `PathOnlyAccessLogger`, which formats
+  from `request.path`; changing `access_log_format` alone cannot fix this, as
+  `%r` is defined as the full request line. The `audit.py` decision log was
+  already token-free and is unchanged.
+- The Docker image no longer ships three copies of the package. The
+  single-stage build left raw sources in `/app/src` and setuptools' `/app/build`
+  alongside the real installed package in `site-packages`, so anyone patching a
+  running container could easily edit a dead copy and see no effect. The build
+  is now multi-stage: a `builder` stage produces wheels, and the runtime stage
+  installs from a bind-mounted wheel dir, leaving `ha_rbac_gateway` at exactly
+  one path and no wheel layer in the final image.
+
 ## [0.3.0] - 2026-07-20
 
 ### Fixed
