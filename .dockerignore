@@ -1,0 +1,22 @@
+# The image is built from pyproject.toml, README.md and src/ only; everything
+# else just makes the context the daemon has to receive bigger.
+.git/
+.github/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+tests/
+docs/
+examples/
+deploy/
+web/
+data/
+policies/
+.env
+.env.*
+!.env.example

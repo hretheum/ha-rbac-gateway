@@ -37,7 +37,10 @@ ha-rbac-gateway = "ha_rbac_gateway.cli:main"
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
-    "ruff>=0.4",
+    # Pinned to a minor series: CI runs `ruff format --check`, and ruff's
+    # formatter changes between minors, so an unpinned range turns CI red on a
+    # release day for code nobody touched.
+    "ruff>=0.16,<0.17",
 ]
 
 [tool.setuptools.dynamic]
