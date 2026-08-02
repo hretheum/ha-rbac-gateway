@@ -80,6 +80,12 @@ def editor_to_mapping(payload: dict) -> dict:
         r = rules(payload.get(kind))
         if r:
             allow[kind] = r
+    # The editor always sends the full desired state, so an absent key means
+    # "off" — same as every other unchecked box. Written out only when true, to
+    # keep untouched policy files byte-identical to what they were before this
+    # field existed. Not coerced: a non-boolean is rejected by parse_policy.
+    if payload.get("token_creation"):
+        allow["token_creation"] = payload["token_creation"]
 
     dash_in = payload.get("dashboards") or {}
     dashboards: dict = {}
@@ -236,6 +242,7 @@ class AdminApi:
                 "entities": [],
                 "areas": [],
                 "domains": [],
+                "token_creation": False,
                 "dashboards": {"default": None, "allowed": []},
             },
         )

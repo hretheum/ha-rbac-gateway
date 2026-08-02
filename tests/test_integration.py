@@ -2,11 +2,13 @@
 so anything scoped here was scoped by the gateway."""
 
 import asyncio
+import json
 import logging
 import time
 
 import aiohttp
 import pytest
+from conftest import FAKE_MINTED_TOKEN
 
 pytestmark = pytest.mark.asyncio
 
@@ -458,3 +460,118 @@ async def test_ws_trip_blocks_everything(gateway):
         ws, reply = await _ws_auth(s, url, "restricted")
         assert reply["type"] == "auth_invalid"
         await ws.close()
+
+
+# --- own-token management (allow.token_creation) -----------------------------
+
+
+async def test_ws_token_creation_denied_without_the_grant(gateway):
+    # u1's policy has no token_creation — this is today's behaviour and the
+    # regression guard for every policy file written before the field existed.
+    url = base(gateway) + "/api/websocket"
+    async with aiohttp.ClientSession() as s:
+        ws, _ = await _ws_auth(s, url, "restricted")
+        await ws.send_json(
+            {"id": 60, "type": "auth/long_lived_access_token", "client_name": "x", "lifespan": 10}
+        )
+        res = await _result(ws, 60)
+        assert res["success"] is False
+        assert res["error"]["code"] == "unauthorized"
+        assert FAKE_MINTED_TOKEN not in json.dumps(res)
+        await ws.close()
+
+
+async def test_ws_refresh_tokens_denied_without_the_grant(gateway):
+    url = base(gateway) + "/api/websocket"
+    async with aiohttp.ClientSession() as s:
+        ws, _ = await _ws_auth(s, url, "restricted")
+        await ws.send_json({"id": 61, "type": "auth/refresh_tokens"})
+        res = await _result(ws, 61)
+        assert res["success"] is False
+        await ws.close()
+
+
+async def test_ws_token_creation_allowed_with_the_grant(gateway):
+    # u2 differs from u1 in exactly one field: allow.token_creation.
+    url = base(gateway) + "/api/websocket"
+    async with aiohttp.ClientSession() as s:
+        ws, _ = await _ws_auth(s, url, "tokenuser")
+        await ws.send_json(
+            {
+                "id": 62,
+                "type": "auth/long_lived_access_token",
+                "client_name": "my script",
+                "lifespan": 3650,
+            }
+        )
+        res = await _result(ws, 62)
+        assert res["success"] is True
+        assert res["result"] == FAKE_MINTED_TOKEN  # relayed verbatim to the user
+        await ws.close()
+
+
+async def test_ws_refresh_tokens_allowed_with_the_grant(gateway):
+    url = base(gateway) + "/api/websocket"
+    async with aiohttp.ClientSession() as s:
+        ws, _ = await _ws_auth(s, url, "tokenuser")
+        await ws.send_json({"id": 63, "type": "auth/refresh_tokens"})
+        res = await _result(ws, 63)
+        assert res["success"] is True
+        assert [t["id"] for t in res["result"]] == ["rt1"]
+        await ws.close()
+
+
+async def test_ws_refresh_tokens_malformed_upstream_fails_closed(gateway):
+    url = base(gateway) + "/api/websocket"
+    async with aiohttp.ClientSession() as s:
+        ws, _ = await _ws_auth(s, url, "tokenuser")
+        await ws.send_json({"id": 64, "type": "auth/refresh_tokens", "_malform": True})
+        res = await _result(ws, 64)
+        assert res["result"] == []  # fail closed, not the upstream dict
+        await ws.close()
+
+
+async def test_token_grant_does_not_widen_anything_else(gateway):
+    # The whole risk of a new allowlist branch is collateral: u2 must still be
+    # exactly as restricted as u1 everywhere else.
+    url = base(gateway) + "/api/websocket"
+    async with aiohttp.ClientSession() as s:
+        ws, _ = await _ws_auth(s, url, "tokenuser")
+        await ws.send_json({"id": 65, "type": "get_states"})
+        ids = {e["entity_id"] for e in (await _result(ws, 65))["result"]}
+        assert ids == {"light.kitchen", "sensor.temp"}  # not sensor.secret
+
+        await ws.send_json({"id": 66, "type": "render_template", "template": "{{ 1 }}"})
+        assert (await _result(ws, 66))["success"] is False
+
+        # Revocation is deliberately NOT part of the grant (see commands.py).
+        await ws.send_json(
+            {"id": 67, "type": "auth/delete_refresh_token", "refresh_token_id": "rt1"}
+        )
+        assert (await _result(ws, 67))["success"] is False
+
+        # Nor does it unlock the admin surface.
+        await ws.send_json({"id": 68, "type": "config/auth/list"})
+        assert (await _result(ws, 68))["success"] is False
+        await ws.close()
+
+
+async def test_ws_token_creation_never_reaches_the_logs(gateway, caplog):
+    # The result of this command IS a credential; the audit line must name the
+    # command and nothing else.
+    url = base(gateway) + "/api/websocket"
+    with caplog.at_level(logging.INFO):
+        async with aiohttp.ClientSession() as s:
+            ws, _ = await _ws_auth(s, url, "tokenuser")
+            await ws.send_json(
+                {
+                    "id": 69,
+                    "type": "auth/long_lived_access_token",
+                    "client_name": "x",
+                    "lifespan": 10,
+                }
+            )
+            assert (await _result(ws, 69))["result"] == FAKE_MINTED_TOKEN
+            await ws.close()
+    assert FAKE_MINTED_TOKEN not in caplog.text
+    assert "auth/long_lived_access_token" in caplog.text  # the decision IS audited

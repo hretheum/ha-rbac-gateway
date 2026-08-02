@@ -51,6 +51,14 @@ class UserPolicy:
     control: _RuleSet = field(default_factory=_RuleSet)
     default_dashboard: str | None = None
     allowed_dashboards: frozenset[str] = frozenset()
+    # May this user manage their OWN long-lived access tokens through the
+    # gateway (create one, list the ones they have)? Opt-in, default deny:
+    # a policy file written before this field existed parses to False, so
+    # existing users keep exactly today's behaviour (the commands stay
+    # denied for them). Note this is NOT an entity grant — it does not
+    # widen what the user can see or control, it only unblocks two HA
+    # commands that act on the caller's own account. See docs/architecture.md.
+    token_creation: bool = False
 
     def matches(self, identity: Identity) -> bool:
         if self.match_user_id is not None:
@@ -77,6 +85,7 @@ class UserPolicy:
             "entities": merged("entities"),
             "domains": merged("domains"),
             "areas": merged("areas"),
+            "token_creation": self.token_creation,
             "dashboards": {
                 "default": self.default_dashboard,
                 "allowed": sorted(self.allowed_dashboards),
@@ -148,7 +157,17 @@ def parse_policy(text: str, source_file: str) -> UserPolicy:
         )
 
     allow = _require_mapping(root.get("allow", {}), f"{source_file}: allow")
-    _check_keys(allow, {"entities", "areas", "domains"}, f"{source_file}: allow")
+    _check_keys(allow, {"entities", "areas", "domains", "token_creation"}, f"{source_file}: allow")
+
+    # Strict, like every other field: only a real YAML boolean counts. A string
+    # ("true", "yes") is a typo, not a grant — refuse rather than guess, so a
+    # quoted value can never silently read as truthy.
+    token_creation = allow.get("token_creation", False)
+    if not isinstance(token_creation, bool):
+        raise PolicyError(
+            f"{source_file}: allow.token_creation must be a boolean (true/false), "
+            f"got {type(token_creation).__name__}"
+        )
 
     read_ent, ctl_ent = set(), set()
     read_dom, ctl_dom = set(), set()
@@ -179,6 +198,7 @@ def parse_policy(text: str, source_file: str) -> UserPolicy:
         control=_RuleSet(frozenset(ctl_ent), frozenset(ctl_dom), frozenset(ctl_area)),
         default_dashboard=default_dash,
         allowed_dashboards=frozenset(allowed_dash),
+        token_creation=token_creation,
     )
 
 

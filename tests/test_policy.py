@@ -141,6 +141,52 @@ def test_enumerable_read_entities_expands_domains():
     assert set(ev.enumerable_read_entities()) == {"sensor.x", "light.a", "light.b"}
 
 
+# --- allow.token_creation ----------------------------------------------------
+
+
+def test_token_creation_defaults_off_for_policies_written_before_the_field():
+    # Backward compatibility: this is byte-for-byte a policy file that predates
+    # the field. It must keep meaning exactly what it meant then — no grant.
+    p = _policy("user: { id: a }\nallow: { entities: [ { id: light.k } ] }")
+    assert p.token_creation is False
+
+
+def test_token_creation_true_is_parsed():
+    p = _policy("user: { id: a }\nallow: { token_creation: true }")
+    assert p.token_creation is True
+
+
+def test_token_creation_false_is_parsed():
+    p = _policy("user: { id: a }\nallow: { token_creation: false }")
+    assert p.token_creation is False
+
+
+@pytest.mark.parametrize("value", ["'true'", "'yes'", "1", "[]", "{}"])
+def test_reject_non_boolean_token_creation(value):
+    # A quoted or numeric value is a typo, not a grant. Refuse to start rather
+    # than let something truthy-looking read as an authorization.
+    with pytest.raises(PolicyError, match="token_creation must be a boolean"):
+        _policy(f"user: {{ id: a }}\nallow: {{ token_creation: {value} }}")
+
+
+def test_token_creation_does_not_widen_entity_access():
+    # The grant is about the caller's own account, never about entities.
+    p = _policy("user: { id: a }\nallow: { token_creation: true }")
+    ev = PolicyEvaluator(p, FakeRegistry())
+    assert not ev.allowed_read("light.anything")
+    assert not ev.allowed_control("light.anything")
+    assert ev.enumerable_read_entities() == []
+
+
+def test_token_creation_round_trips_through_the_editor_dict():
+    # to_editor_dict feeds the admin panel; if the field were missing there the
+    # panel would silently save it back as off.
+    on = _policy("user: { id: a }\nallow: { token_creation: true }")
+    off = _policy("user: { id: b }\nallow: {}")
+    assert on.to_editor_dict()["token_creation"] is True
+    assert off.to_editor_dict()["token_creation"] is False
+
+
 def test_policy_store_matches_by_id_then_name():
     by_id = _policy("user: { id: uid1 }\nallow: {}", "id.yaml")
     by_name = _policy("user: { name: Bob }\nallow: {}", "name.yaml")
